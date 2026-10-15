@@ -154,7 +154,7 @@ function Can({ flavorId, interactive = true, reduceMotion = false }: CanProps) {
   return (
     <group ref={group} rotation={[0, 0, -0.18]}>
       <group ref={spin}>
-        <mesh castShadow>
+        <mesh>
           <latheGeometry args={[profile, 96]} />
           <meshPhysicalMaterial color="#cfd3d6" metalness={1} roughness={0.22} clearcoat={0.4} />
         </mesh>
@@ -248,18 +248,23 @@ export default function CanStage({
   return (
     <div ref={wrap} className={className} aria-hidden>
       <Canvas
-        dpr={touch ? [1, 1.25] : [1, 1.75]}
-        frameloop={inView ? "always" : "never"}
+        dpr={touch ? [1, 1.25] : [1, 1.5]}
+        // Off-screen stages still render once ("demand"), so their shaders
+        // compile at load rather than mid-scroll; then they sit idle.
+        frameloop={inView ? "always" : "demand"}
         camera={{ position: [0, 0, 6.4], fov: 30 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
-        shadows
+        onCreated={({ gl }) => {
+          // Error checks force synchronous shader compiles (a stall per material).
+          gl.debug.checkShaderErrors = false;
+        }}
         {...(eventSource
           ? { eventSource: eventSource as React.RefObject<HTMLElement>, eventPrefix: "client" as const }
           : {})}
       >
         <ResponsiveCamera />
         <ambientLight intensity={0.35} />
-        <directionalLight position={[3, 4, 4]} intensity={1.4} castShadow />
+        <directionalLight position={[3, 4, 4]} intensity={1.4} />
         <AccentRig hex={flavor.hex} />
 
         <Anchor x={anchorX} y={anchorY} scale={scale}>
@@ -274,7 +279,8 @@ export default function CanStage({
             <Sparkles count={18} scale={[4, 4, 2]} size={2} speed={0.3} opacity={0.5} color={flavor.hex} />
           )}
 
-          <ContactShadows position={[0, -1.85, 0]} opacity={0.32} scale={3.2} blur={2.8} far={2.5} />
+          {/* Rendered once: re-rendering the scene + blur passes every frame cost more than the motion was worth. */}
+          <ContactShadows position={[0, -1.85, 0]} opacity={0.32} scale={3.2} blur={2.8} far={2.5} resolution={256} frames={1} />
         </Anchor>
 
         {/* Studio reflections built from light cards (no HDR download). */}

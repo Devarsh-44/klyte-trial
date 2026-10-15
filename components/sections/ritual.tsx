@@ -62,7 +62,6 @@ export function Ritual() {
           { width: frameW, height: frameH, borderRadius: "28px", duration: 1, ease: "power2.inOut" },
           0,
         );
-        tl.fromTo(".ff-sentence", { fontSize: "clamp(3rem, 6.2vw, 7rem)" }, { fontSize: "clamp(2.5rem, 5vw, 5.25rem)", duration: 1, ease: "power2.inOut" }, 0);
 
         // 2. "the ordinary." gives way to the first step's copy.
         tl.to(".ff-ordinary", { yPercent: -110, duration: 0.25 }, 1.05);
@@ -98,7 +97,7 @@ export function Ritual() {
         <h2 id="ritual-title" className="sr-only">
           How it hits: crack, fizz, hydrate, outgrow
         </h2>
-        <div aria-hidden className="ff-sentence flex w-full items-center justify-center gap-[0.28em] px-8 font-display uppercase leading-[0.9] text-fg" style={{ fontSize: "clamp(3rem, 6.2vw, 7rem)" }}>
+        <div aria-hidden className="ff-sentence flex w-full items-center justify-center gap-[0.28em] px-8 font-display uppercase leading-[0.9] text-fg" style={{ fontSize: "clamp(2.75rem, 5.6vw, 6rem)" }}>
           {/* Left: the step word */}
           <div className="relative flex flex-1 justify-end overflow-hidden pb-[0.06em]">
             {STEPS.map((s, i) => (
