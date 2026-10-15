@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Flavor tokens — FlavorProvider rewrites these on switch. */
+  --accent: #d92f43;
+  --tint-dark: #ff7a8a;
+  --tint-light: #c01f33;
+  --on-accent: #ffffff;
+  --glow: #f7a8be;
+  --accent-soft: #9bcb3c;
+  --accent-deep: #48050f;
+
+  /* Master brand colour (Instagram avatar magenta). Logo + brand moments. */
+  --brand: #e6006e;
+  --brand-deep: #7a0035;
+  --brand-blush: #ffd6e6;
+
+  --font-display: "Anton";
+  --font-wordmark: "Titan One";
+}
+
+/* Theme tokens. Dark is the default; light mirrors it on warm paper. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0b0c;
+  --fg: #f4f1ea;
+  --card: rgba(255, 255, 255, 0.035);
+  --card-strong: rgba(18, 18, 20, 0.6);
+  --line: rgba(255, 255, 255, 0.09);
+  --tint: var(--tint-dark);
+  --wash: 0.22;
+  --grain: 0.06;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --fg: #141414;
+  --card: rgba(255, 255, 255, 0.62);
+  --card-strong: rgba(250, 249, 246, 0.72);
+  --line: rgba(20, 20, 20, 0.09);
+  --tint: var(--tint-light);
+  --wash: 0.38;
+  --grain: 0.035;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--bg);
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 400ms cubic-bezier(0.23, 1, 0.32, 1), color 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  ::selection {
+    background: var(--brand);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* Accent-driven elements fade between flavors on their own, so the
+     variable itself never needs to animate. */
+  [data-accent-fade] {
+    transition-property: color, background-color, border-color, fill, stroke;
+    transition-duration: 600ms;
+    transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+}
+
+/* Lenis recommended CSS */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Film grain: one fixed layer, tuned per theme. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+/* Bento proximity border: a faint ring that follows --mx/--my. */
+.proximity-card {
+  --mx: -999px;
+  --my: -999px;
+  position: relative;
+  isolation: isolate;
+}
+.proximity-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    300px circle at var(--mx) var(--my),
+    color-mix(in srgb, var(--accent) 70%, transparent),
+    transparent 65%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+@media (hover: none) {
+  .proximity-card::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  body {
+    transition: none;
+  }
+}
+
+/* Rising carbonation inside the ritual glass (transform + opacity only). */
+@keyframes ritual-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(8px, -420px, 0);
+    opacity: 0;
+  }
+}
+.ritual-bubble {
+  animation: ritual-rise 3s linear infinite;
+}
