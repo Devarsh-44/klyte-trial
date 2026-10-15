@@ -47,6 +47,7 @@
   #press-ring { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
 
   /* Stage */
+  #mac { z-index: 1; } #phone-body { z-index: 2; } #lock { z-index: 3; } #goo { z-index: 4; } #card { z-index: 5; } #flybtn { z-index: 6; }
   .phone-body { position: absolute; background: #0B0B0C; box-shadow: 0 40px 80px rgba(0,0,0,0.30); }
   #lock { position: absolute; overflow: hidden; background: #0d2a4a; }
   .win { position: absolute; background: #0B0B0C; overflow: hidden; box-shadow: 0 40px 90px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.6); }
@@ -769,7 +770,7 @@ function renderGlass(t) {
 function placeLens(t, lens, lockR) {
   // From beat 23 the orb rides the expanding lock screen, its rim just outside.
   let r = lens;
-  if (t >= B(22.9) && lockR) r = { x: lockR.x - 40, y: lockR.y - 40, w: lockR.w + 80, h: lockR.h + 80, r: (lockR.r ?? 0) + 40 };
+  if (lockR && t >= B(22) && lockR.w + 80 > lens.w) r = { x: lockR.x - 40, y: lockR.y - 40, w: lockR.w + 80, h: lockR.h + 80, r: (lockR.r ?? 0) + 40 };
   lensGlass.set(r.x, r.y, r.w, r.h, r.r, { strength: lerp(50, 130, clamp((r.w - 96) / 300)), edge: 0.6, power: 1.6, tint: 0.04 });
   setBox($("lens-shadow"), r);
 }
@@ -1060,7 +1061,8 @@ function renderStage(t) {
   $("pimg-melon").style.clipPath = `circle(${paintR}px at ${SW_RED.x - slotToImg.x}px ${SW_RED.y - slotToImg.y}px)`;
 
   // drag card: phone wallpaper -> over the tab -> hero slot
-  const from = { ...PS };
+  const press0 = { x: PS.x + PS.w * 0.55, y: PS.y + PS.h * 0.55 };
+  const from = { x: press0.x, y: press0.y, w: 0, h: 0, r: 0 };   // lifts out from under the finger
   const thumb = { x: MAC.x + 120, y: MAC.y + 70, w: 150, h: 214, r: 20 };
   const to = { x: PAGE.x + SLOT.x, y: PAGE.y + SLOT.y, w: SLOT.w, h: SLOT.h, r: 28 };
   const a = step(t, B(31), 1.4, 0.72);
@@ -1070,7 +1072,7 @@ function renderStage(t) {
   const ce = $("card");
   setBox(ce, card);
   ce.style.transform = `rotate(${(clamp(a) - clamp(b)) * -6}deg)`;
-  vis(ce, within(t, 30.9, 33.3));
+  vis(ce, within(t, 31, 33.3) && card.w > 1);
 
   // nav "Buy" flies down into "Get it cold" at 37
   const navR = { x: PAGE.x + NAVBUY.x, y: PAGE.y + NAVBUY.y, w: NAVBUY.w, h: NAVBUY.h, r: 13 };
@@ -1250,7 +1252,7 @@ async function renderWall(t) {
 /* ============================================================== CURSOR == */
 const CUR_KEYS = [
   // [beat, x, y]
-  [3.3, 1300, 1380], [3.4, 760, 760], [5.2, 1030, 1080], [10.2, 400, 410],
+  [3.3, 1300, 1380], [3.4, 760, 760], [5.2, 1030, 1080], [10.2, 400, 410], [11.25, 1100, 1180],
   [16.4, 1300, 1400], [16.5, SL.x + SL.w * 0.25 + 4, SLC.y + 6], [17.35, KX0 + 4, SLC.y + 6], [21.1, 1180, 1300],
   [29.3, 900, 1380], [29.4, PS.x + PS.w * 0.55, PS.y + PS.h * 0.55],
   [33.4, PAGE.x + 520, PAGE.y + 300],
