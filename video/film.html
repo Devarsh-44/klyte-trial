@@ -1,0 +1,1345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Klyte 2.0</title>
+<style>
+  @font-face { font-family: "Archivo"; src: url("assets/fonts/Archivo-wdth.woff2") format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+  @font-face { font-family: "Geist"; src: url("assets/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; }
+
+  :root { --paper: #F4F1EA; --ink: #0B0B0C; --melon: #D92F43; --blue: #2D6BE4; --magenta: #E6006E; }
+  html, body { margin: 0; background: var(--paper); }
+  #frame { position: relative; width: 1440px; height: 1440px; overflow: hidden; background: var(--paper); font-family: "Geist", system-ui, sans-serif; color: var(--ink); }
+  #cam { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; transform-origin: 0 0; }
+  .layer { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; visibility: hidden; }
+  .abs { position: absolute; }
+  /* A child must inherit visibility, or it shows through a hidden parent. */
+  .layer * { visibility: inherit; }
+  img { display: block; user-select: none; }
+  .cover { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+  .mask { overflow: hidden; }
+  .mask > span { display: inline-block; }
+
+  /* Wordmark */
+  .glyph { position: absolute; top: 0; font-family: "Archivo"; font-weight: 800; font-size: 300px; line-height: 1; white-space: pre; transform-origin: 0 0; color: var(--ink); }
+  #dot { background: var(--ink); overflow: hidden; }
+  .pill-label { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 52px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; }
+
+  /* Tiles */
+  .tile { position: absolute; overflow: hidden; background: #111; }
+  .tile .shade { position: absolute; inset: 0; background: #000; }
+
+  /* Liquid glass */
+  .glass { position: absolute; overflow: hidden; isolation: isolate; }
+  .glass > .clone { position: absolute; left: 0; top: 0; overflow: hidden; }
+  .glass > .rim { position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.06) 38%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.10) 100%);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.80), inset 0 -1.5px 0 rgba(255,255,255,0.28), inset 0 0 0 1.5px rgba(255,255,255,0.22), inset 0 0 24px rgba(255,255,255,0.10); }
+  .glass > .tint { position: absolute; inset: 0; }
+  .glass-shadow { position: absolute; box-shadow: 0 22px 50px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.18); }
+  .mg { position: absolute; }
+  .mg > .body { position: absolute; left: 0; top: 0; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+  .mg > .body > .clone { position: absolute; overflow: hidden; }
+  .mg img { position: absolute; }
+
+  /* Cursor */
+  #cursor { position: absolute; left: 0; top: 0; width: 44px; height: 44px; transform-origin: 6px 4px; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.35)); }
+  #press-ring { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
+
+  /* Stage */
+  .phone-body { position: absolute; background: #0B0B0C; box-shadow: 0 40px 80px rgba(0,0,0,0.30); }
+  #lock { position: absolute; overflow: hidden; background: #0d2a4a; }
+  .win { position: absolute; background: #0B0B0C; overflow: hidden; box-shadow: 0 40px 90px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.6); }
+  .titlebar { position: absolute; left: 0; right: 0; top: 0; height: 52px; background: #161617; display: flex; align-items: center; gap: 10px; padding: 0 20px; box-sizing: border-box; }
+  .light { width: 14px; height: 14px; border-radius: 50%; }
+  .tab { margin-left: 22px; height: 34px; width: 300px; border-radius: 10px; background: #2A2A2C; color: #F4F1EA; font-size: 15px; position: relative; overflow: hidden; }
+  .tab > div { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; padding: 0 16px; white-space: nowrap; }
+  .url { position: absolute; left: 50%; top: 9px; transform: translateX(-50%); width: 360px; height: 34px; border-radius: 10px; background: #232325; color: rgba(244,241,234,0.75); font-size: 15px; overflow: hidden; }
+  .url > div { position: absolute; inset: 0; display: grid; place-items: center; }
+  .panel-text { position: absolute; white-space: nowrap; overflow: hidden; }
+  .panel-text > span { display: inline-block; }
+
+  /* Order shape */
+  #shape { position: absolute; background: var(--ink); overflow: hidden; }
+  .content { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; gap: 22px; color: #fff; font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="cam">
+
+    <!-- OPEN: wordmark -> dot -> pill -> iris -> tiles -> bento -->
+    <div class="layer" id="L-open">
+      <div class="abs" id="tiles"></div>
+      <div class="abs" id="word"></div>
+      <div class="abs" id="dot">
+        <div class="pill-label"><span id="pill-a">Hydration, recharged.</span></div>
+        <div class="pill-label"><span id="pill-b">Outgrow the ordinary.</span></div>
+      </div>
+      <svg class="abs" id="iris-open" width="1440" height="1440" viewBox="0 0 1440 1440" style="left:0;top:0"></svg>
+      <div class="abs mask" id="tagline" style="left:0;width:1440px;text-align:center;font-weight:500;font-size:44px;letter-spacing:-0.01em;color:#0B0B0C"><span id="tagline-in">Hydration, recharged.</span></div>
+    </div>
+
+    <!-- GLASS: aligned flavor pair, fizz letters, toolbar, slider, lens/orb -->
+    <div class="layer" id="L-glass">
+      <div class="abs" id="photo-host" style="left:0;top:0;width:1440px;height:1440px"></div>
+      <div id="fizz-host"></div>
+      <div class="glass-shadow" id="slider-shadow"></div>
+      <div id="slider-glass-host"></div>
+      <div class="abs" id="slider-ui" style="left:0;top:0"></div>
+      <div class="abs" id="slider-labels" style="left:0;top:0;width:1440px;height:1440px"></div>
+      <div class="glass-shadow" id="lens-shadow"></div>
+      <div id="lens-glass-host"></div>
+    </div>
+
+    <!-- STAGE: lock screen, phone, island goo, Mac/Safari, card -->
+    <div class="layer" id="L-stage"></div>
+
+    <!-- ORDER: one black shape that keeps morphing -->
+    <div class="layer" id="L-order"></div>
+
+    <!-- WALL: pour-flood, frame, footage, iris -->
+    <div class="layer" id="L-wall"></div>
+
+    <svg id="press-ring" viewBox="0 0 96 96" aria-hidden="true"><circle id="press-ring-c" cx="48" cy="48" r="38" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" transform="rotate(-90 48 48)"/></svg>
+    <svg id="cursor" viewBox="0 0 44 44" aria-hidden="true">
+      <path d="M6 4 L6 36 L14 28.5 L19.5 40.5 L25 38 L19.5 26.5 L30 26.5 Z" fill="#0B0B0C" stroke="#FFFFFF" stroke-width="2.6" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <svg width="0" height="0" style="position:absolute">
+    <defs id="filters">
+      <!-- Goo: blur + alpha threshold. -->
+      <filter id="goo" x="-20%" y="-50%" width="140%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>
+        <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -11" result="g"/>
+        <feComposite in="SourceGraphic" in2="g" operator="atop"/>
+      </filter>
+      <linearGradient id="alu" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#F1F3F5"/><stop offset="0.45" stop-color="#C3C9CF"/><stop offset="1" stop-color="#8E979F"/>
+      </linearGradient>
+    </defs>
+  </svg>
+</div>
+
+<script>
+/* ======================================================================== *
+ * Klyte 2.0, the hydration update. 30 s, 120 BPM, 60 beats.
+ * Every style is a pure function of t inside seek(t): no CSS transitions,
+ * no timers, no state carried between frames (caches only memoise).
+ * ======================================================================== */
+const W = 1440;
+const BPM = 120;
+const B = (b) => (b * 60) / BPM;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, t0, d) => clamp((t - t0) / d);
+const inOutCubic = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const inOutQuart = (k) => (k < 0.5 ? 8 * k * k * k * k : 1 - Math.pow(-2 * k + 2, 4) / 2);
+const $ = (id) => document.getElementById(id);
+const px = (v) => `${v}px`;
+const SVGNS = "http://www.w3.org/2000/svg";
+
+/* Closed-form spring step response 0 -> 1 (underdamped, z < 1). */
+function step(t, t0, f = 1.6, z = 0.62) {
+  const tau = t - t0;
+  if (tau <= 0) return 0;
+  const w = 2 * Math.PI * f;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + ((z * w) / wd) * Math.sin(wd * tau));
+}
+/* Many targets = sum of one spring per change. keys: [time, value, f?, z?] */
+function track(v0, keys) {
+  return (t) => {
+    let v = v0, prev = v0;
+    for (const [t0, val, f, z] of keys) { v += (val - prev) * step(t, t0, f, z); prev = val; }
+    return v;
+  };
+}
+const RK = ["x", "y", "w", "h", "r"];
+function rectTrack(r0, keys) {
+  const tr = {};
+  for (const k of RK) tr[k] = track(r0[k] ?? 0, keys.map(([t0, r, f, z]) => [t0, r[k] ?? 0, f, z]));
+  return (t) => ({ x: tr.x(t), y: tr.y(t), w: tr.w(t), h: tr.h(t), r: tr.r(t) });
+}
+const mixRect = (a, b, k) => ({ x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), w: lerp(a.w, b.w, k), h: lerp(a.h, b.h, k), r: lerp(a.r ?? 0, b.r ?? 0, k) });
+const circleRect = (cx, cy, d) => ({ x: cx - d / 2, y: cy - d / 2, w: d, h: d, r: d / 2 });
+function setBox(el, r) {
+  const s = el.style;
+  s.left = px(r.x); s.top = px(r.y);
+  s.width = px(Math.max(0, r.w)); s.height = px(Math.max(0, r.h));
+  if (r.r !== undefined) s.borderRadius = px(Math.max(0, Math.min(r.r, r.w / 2, r.h / 2)));
+}
+function vis(el, on) { el.style.visibility = on ? "inherit" : "hidden"; }
+function show(el, on) { el.style.visibility = on ? "visible" : "hidden"; }
+const within = (t, a, b) => t >= B(a) && t < B(b);
+/* Masked text: rises in at tin, rises out at tout (percent of its own height). */
+const riseY = (t, tin, tout = 1e9, f = 1.9, z = 0.74) => (1 - step(t, B(tin), f, z)) * 112 - step(t, B(tout), f, z) * 112;
+function setRise(el, t, tin, tout) { el.style.transform = `translateY(${riseY(t, tin, tout)}%)`; }
+
+/* =============================================================== GLASS ==
+ * Each glass element holds its own clone of the scene behind it, filtered
+ * through an feImage displacement map and three feDisplacementMaps at
+ * slightly different scales (chromatic edges), plus a rim light.
+ * ======================================================================== */
+function makeFilter(id) {
+  const filter = document.createElementNS(SVGNS, "filter");
+  filter.setAttribute("id", id);
+  filter.setAttribute("filterUnits", "userSpaceOnUse");
+  filter.setAttribute("primitiveUnits", "userSpaceOnUse");
+  filter.setAttribute("x", "0"); filter.setAttribute("y", "0");
+  filter.setAttribute("color-interpolation-filters", "sRGB");
+  filter.innerHTML = `
+    <feImage result="map" preserveAspectRatio="none"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G" result="dr"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G" result="dg"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G" result="db"/>
+    <feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>
+    <feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>
+    <feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>
+    <feBlend in="r" in2="g" mode="screen" result="rg"/>
+    <feBlend in="rg" in2="b" mode="screen" result="rgb"/>
+    <feComponentTransfer in="rgb"><feFuncR type="linear" slope="1.06" intercept="0.02"/><feFuncG type="linear" slope="1.06" intercept="0.02"/><feFuncB type="linear" slope="1.06" intercept="0.02"/></feComponentTransfer>`;
+  $("filters").appendChild(filter);
+  const [feImage, dR, dG, dB] = filter.children;
+  return {
+    filter,
+    set(mapUrl, x, y, w, h, strength, cw, ch) {
+      filter.setAttribute("width", String(cw)); filter.setAttribute("height", String(ch));
+      feImage.setAttribute("href", mapUrl);
+      feImage.setAttribute("x", String(x)); feImage.setAttribute("y", String(y));
+      feImage.setAttribute("width", String(Math.max(1, w))); feImage.setAttribute("height", String(Math.max(1, h)));
+      dR.setAttribute("scale", String(strength));
+      dG.setAttribute("scale", String(strength * 1.07));
+      dB.setAttribute("scale", String(strength * 1.14));
+    },
+  };
+}
+
+const mapCache = new Map();
+function rectMap(w, h, r, edge, power = 2) {
+  w = Math.max(2, Math.round(w)); h = Math.max(2, Math.round(h)); r = Math.min(Math.round(r), Math.floor(w / 2), Math.floor(h / 2));
+  edge = Math.max(2, Math.round(edge));
+  const key = `${w}x${h}x${r}x${edge}x${power}`;
+  if (mapCache.has(key)) return mapCache.get(key);
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  const img = ctx.createImageData(w, h);
+  const hw = w / 2, hh = h / 2;
+  const sdf = (x, y) => {
+    const qx = Math.abs(x - hw) - (hw - r), qy = Math.abs(y - hh) - (hh - r);
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const x0 = x + 0.5, y0 = y + 0.5, d = sdf(x0, y0);
+    let R = 128, G = 128;
+    if (d < 0) {
+      const nx = sdf(x0 + 1, y0) - sdf(x0 - 1, y0), ny = sdf(x0, y0 + 1) - sdf(x0, y0 - 1);
+      const nl = Math.hypot(nx, ny) || 1, m = Math.pow(clamp(1 + d / edge), power);
+      R = 128 - 127 * (nx / nl) * m; G = 128 - 127 * (ny / nl) * m;
+    }
+    const i = (y * w + x) * 4;
+    img.data[i] = R; img.data[i + 1] = G; img.data[i + 2] = 128; img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const url = c.toDataURL();
+  if (mapCache.size > 400) mapCache.clear();
+  mapCache.set(key, url);
+  return url;
+}
+
+let glassCount = 0;
+/* Rounded-rect glass. Its clone is cw x ch in its parent's coordinates. */
+function makeGlass(host, buildClone) {
+  const f = makeFilter(`glass-${glassCount++}`);
+  const el = document.createElement("div");
+  el.className = "glass";
+  const clone = document.createElement("div");
+  clone.className = "clone";
+  clone.style.filter = `url(#${f.filter.id})`;
+  const api = buildClone(clone);
+  const tint = document.createElement("div");
+  tint.className = "tint";
+  const rim = document.createElement("div");
+  rim.className = "rim";
+  el.append(clone, tint, rim);
+  host.appendChild(el);
+  return {
+    el, clone: api,
+    set(x, y, w, h, r, { strength = 60, edge = 0.42, power = 2, tint: tv = 0, cw = W, ch = W } = {}) {
+      setBox(el, { x, y, w, h, r });
+      clone.style.left = px(-x); clone.style.top = px(-y);
+      clone.style.width = px(cw); clone.style.height = px(ch);
+      f.set(rectMap(w, h, Math.min(r, w / 2, h / 2), Math.min(w, h) * edge, power), x, y, w, h, strength, cw, ch);
+      tint.style.background = tv ? `rgba(255,255,255,${tv})` : "transparent";
+    },
+  };
+}
+
+/* ---- Glass from any mask: a distance field gives map, mask and highlights. */
+function distanceInside(alpha, w, h) {
+  const INF = 1e9, d = new Float32Array(w * h), D = Math.SQRT2;
+  for (let i = 0; i < w * h; i++) d[i] = alpha[i] > 127 ? INF : 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (!d[i]) continue;
+    let v = d[i];
+    v = Math.min(v, x > 0 ? d[i - 1] + 1 : 1);
+    v = Math.min(v, y > 0 ? d[i - w] + 1 : 1);
+    v = Math.min(v, x > 0 && y > 0 ? d[i - w - 1] + D : D);
+    v = Math.min(v, x < w - 1 && y > 0 ? d[i - w + 1] + D : D);
+    d[i] = v;
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x;
+    if (!d[i]) continue;
+    let v = d[i];
+    v = Math.min(v, x < w - 1 ? d[i + 1] + 1 : 1);
+    v = Math.min(v, y < h - 1 ? d[i + w] + 1 : 1);
+    v = Math.min(v, x < w - 1 && y < h - 1 ? d[i + w + 1] + D : D);
+    v = Math.min(v, x > 0 && y < h - 1 ? d[i + w - 1] + D : D);
+    d[i] = v;
+  }
+  return d;
+}
+function glassAssets(mask, edge, power = 1.8) {
+  const w = mask.width, h = mask.height;
+  const src = mask.getContext("2d").getImageData(0, 0, w, h).data;
+  const alpha = new Uint8ClampedArray(w * h);
+  for (let i = 0; i < w * h; i++) alpha[i] = src[i * 4 + 3];
+  const d = distanceInside(alpha, w, h);
+  const mapC = document.createElement("canvas"); mapC.width = w; mapC.height = h;
+  const hiC = document.createElement("canvas"); hiC.width = w; hiC.height = h;
+  const mapI = mapC.getContext("2d").createImageData(w, h);
+  const hiI = hiC.getContext("2d").createImageData(w, h);
+  const L = [-0.6, -0.8];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, o = i * 4, di = d[i];
+    let R = 128, G = 128, A = 0;
+    if (di > 0) {
+      const gx = (x < w - 1 ? d[i + 1] : 0) - (x > 0 ? d[i - 1] : 0);
+      const gy = (y < h - 1 ? d[i + w] : 0) - (y > 0 ? d[i - w] : 0);
+      const gl = Math.hypot(gx, gy) || 1, nx = gx / gl, ny = gy / gl;      // inward
+      const m = Math.pow(clamp(1 - di / edge), power);
+      R = 128 + 127 * nx * m; G = 128 + 127 * ny * m;
+      const lam = -(nx * L[0] + ny * L[1]);                                // outward normal . light
+      const rim = clamp(1 - (di - 0.5) / 4.2);
+      A = 255 * clamp(rim * (0.45 + 0.55 * Math.max(0, lam)) + rim * 0.35 * Math.max(0, -lam) + 0.16 * clamp(1 - di / 30));
+    }
+    mapI.data[o] = R; mapI.data[o + 1] = G; mapI.data[o + 2] = 128; mapI.data[o + 3] = 255;
+    hiI.data[o] = 255; hiI.data[o + 1] = 255; hiI.data[o + 2] = 255; hiI.data[o + 3] = A;
+  }
+  mapC.getContext("2d").putImageData(mapI, 0, 0);
+  hiC.getContext("2d").putImageData(hiI, 0, 0);
+  const sh = document.createElement("canvas"); sh.width = w + 80; sh.height = h + 80;
+  const sil = document.createElement("canvas"); sil.width = w; sil.height = h;
+  const sc = sil.getContext("2d");
+  sc.drawImage(mask, 0, 0); sc.globalCompositeOperation = "source-in"; sc.fillStyle = "rgba(0,0,0,0.42)"; sc.fillRect(0, 0, w, h);
+  const shc = sh.getContext("2d"); shc.filter = "blur(12px)"; shc.drawImage(sil, 40, 54);
+  return { map: mapC.toDataURL(), hi: hiC.toDataURL(), mask: mask.toDataURL(), shadow: sh.toDataURL() };
+}
+function makeMaskGlass(host, buildClone) {
+  const f = makeFilter(`mglass-${glassCount++}`);
+  const wrap = document.createElement("div"); wrap.className = "mg";
+  const shadow = document.createElement("img");
+  const body = document.createElement("div"); body.className = "body";
+  const clone = document.createElement("div"); clone.className = "clone";
+  clone.style.filter = `url(#${f.filter.id})`;
+  const api = buildClone(clone);
+  const tint = document.createElement("div"); tint.className = "abs"; tint.style.inset = "0";
+  const hi = document.createElement("img");
+  body.append(clone, tint, hi);
+  wrap.append(shadow, body);
+  host.appendChild(wrap);
+  return {
+    el: wrap, clone: api,
+    /** Mask canvas is drawn at (bx, by) in the parent's coordinates. */
+    set(bx, by, mask, { strength = 70, edge = 22, cw = W, ch = W, tint: tv = 0.04 } = {}) {
+      const a = glassAssets(mask, edge);
+      const w = mask.width, h = mask.height;
+      setBox(wrap, { x: bx, y: by, w, h });
+      Object.assign(shadow.style, { left: "-40px", top: "-40px", width: px(w + 80), height: px(h + 80) });
+      shadow.src = a.shadow;
+      Object.assign(body.style, { width: px(w), height: px(h), webkitMaskImage: `url(${a.mask})`, maskImage: `url(${a.mask})` });
+      Object.assign(clone.style, { left: px(-bx), top: px(-by), width: px(cw), height: px(ch) });
+      f.set(a.map, bx, by, w, h, strength, cw, ch);
+      tint.style.background = `rgba(255,255,255,${tv})`;
+      Object.assign(hi.style, { left: "0", top: "0", width: px(w), height: px(h) });
+      hi.src = a.hi;
+    },
+  };
+}
+
+/* ======================================================= PULL-TAB IRIS ==
+ * 6 blades around a hexagonal aperture. Each blade = its two vertices, both
+ * edge extensions out to the circle, and the SHORT arc between them. The
+ * blades are can-lid tabs: brushed aluminium, a finger slot and a rivet.
+ * ======================================================================== */
+function irisMarkup(cx, cy, R, a, rot) {
+  const V = [];
+  for (let k = 0; k < 6; k++) V.push([cx + a * Math.cos(rot + (k * Math.PI) / 3), cy + a * Math.sin(rot + (k * Math.PI) / 3)]);
+  const Rb = R * 2;                                           // arc radius beyond the clip circle
+  const hit = (P, d) => {                                     // ray P + s d meets circle Rb
+    const ox = P[0] - cx, oy = P[1] - cy;
+    const b = ox * d[0] + oy * d[1], c = ox * ox + oy * oy - Rb * Rb;
+    const s = -b + Math.sqrt(Math.max(0, b * b - c));
+    return [P[0] + s * d[0], P[1] + s * d[1]];
+  };
+  const dir = (P, Q) => { const l = Math.hypot(Q[0] - P[0], Q[1] - P[1]) || 1; return [(Q[0] - P[0]) / l, (Q[1] - P[1]) / l]; };
+  let out = "";
+  for (let i = 0; i < 6; i++) {
+    const Vi = V[i], Vn = V[(i + 1) % 6], Vp = V[(i + 5) % 6];
+    const Ai = hit(Vn, dir(Vi, Vn));                           // edge i extended past V(i+1)
+    const Ap = hit(Vi, dir(Vp, Vi));                           // edge i-1 extended past V(i)
+    let da = Math.atan2(Ap[1] - cy, Ap[0] - cx) - Math.atan2(Ai[1] - cy, Ai[0] - cx);
+    da = ((da % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const sweep = da < Math.PI ? 1 : 0;                         // the short way round
+    const d = `M${Vi[0]} ${Vi[1]} L${Vn[0]} ${Vn[1]} L${Ai[0]} ${Ai[1]} A${Rb} ${Rb} 0 0 ${sweep} ${Ap[0]} ${Ap[1]} Z`;
+    // Tab details sit along the blade, outward from its edge midpoint.
+    const mx = (Vi[0] + Vn[0]) / 2, my = (Vi[1] + Vn[1]) / 2;
+    const e = dir(Vi, Vn), n = [e[1], -e[0]];
+    const outw = (mx - cx) * n[0] + (my - cy) * n[1] >= 0 ? n : [-n[0], -n[1]];
+    const depth = Math.max(R - a * 0.866, 40);
+    const sx = mx + outw[0] * depth * 0.42 + e[0] * depth * 0.18, sy = my + outw[1] * depth * 0.42 + e[1] * depth * 0.18;
+    const rx = mx + outw[0] * depth * 0.78, ry = my + outw[1] * depth * 0.78;
+    const ang = (Math.atan2(e[1], e[0]) * 180) / Math.PI;
+    const sw = Math.min(R * 0.36, depth * 0.55), sh = sw * 0.42;
+    out += `<path d="${d}" fill="url(#alu)" stroke="#6F777E" stroke-width="2.5" stroke-linejoin="round"/>`;
+    out += `<rect x="${sx - sw / 2}" y="${sy - sh / 2}" width="${sw}" height="${sh}" rx="${sh / 2}" transform="rotate(${ang} ${sx} ${sy})" fill="#1C1F22" stroke="#9AA2A9" stroke-width="2"/>`;
+    out += `<circle cx="${rx}" cy="${ry}" r="${Math.max(6, R * 0.025)}" fill="#C3C8CD" stroke="#7D858C" stroke-width="2"/>`;
+  }
+  return out;
+}
+/* openness 0 = closed, 1 = fully open (aperture clears the circle). */
+function drawIris(svg, cx, cy, R, openness, clipId) {
+  const aOpen = (R / Math.cos(Math.PI / 6)) * 1.03;
+  const a = Math.max(0.6, aOpen * clamp(openness, 0, 1.1));
+  const rot = (1 - clamp(openness)) * 0.9 + 0.2;
+  svg.innerHTML = `<defs><clipPath id="${clipId}"><circle cx="${cx}" cy="${cy}" r="${R}"/></clipPath></defs><g clip-path="url(#${clipId})">${irisMarkup(cx, cy, R, a, rot)}</g>`;
+}
+
+/* ================================================================ OPEN == */
+const WORD = "klyte";
+const FS = 300, TRACK = -6;
+const wordState = { glyphs: [], adv: [], wdths: [62, 75, 87.5, 100, 112.5, 125], x0: 0, base: 815, dot: null, baseline: 0 };
+
+function measureWord() {
+  const host = $("word");
+  const probe = document.createElement("span");
+  probe.className = "glyph";
+  probe.style.visibility = "hidden";
+  document.body.appendChild(probe);
+  for (const ch of WORD) {
+    wordState.adv.push(wordState.wdths.map((wd) => {
+      probe.style.fontVariationSettings = `"wdth" ${wd}, "wght" 800`;
+      probe.textContent = ch;
+      return probe.getBoundingClientRect().width;
+    }));
+  }
+  probe.remove();
+  const c = document.createElement("canvas");
+  c.width = 400; c.height = 400;
+  const ctx = c.getContext("2d");
+  ctx.font = `800 ${FS}px Archivo`;
+  ctx.fontStretch = "expanded";
+  ctx.fillText(".", 100, 300);
+  const advDot = ctx.measureText(".").width;
+  const d = ctx.getImageData(0, 0, 400, 400).data;
+  let x0 = 400, x1 = 0, y0 = 400, y1 = 0;
+  for (let y = 0; y < 400; y++) for (let x = 0; x < 400; x++) if (d[(y * 400 + x) * 4 + 3] > 128) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  const line = document.createElement("span");
+  line.className = "glyph";
+  line.style.visibility = "hidden";
+  line.innerHTML = `k<i style="display:inline-block;width:0;height:0;vertical-align:baseline"></i>`;
+  document.body.appendChild(line);
+  wordState.baseline = line.querySelector("i").getBoundingClientRect().top - line.getBoundingClientRect().top;
+  line.remove();
+  wordState.dot = { lsb: x0 - 100, w: x1 - x0 + 1, h: y1 - y0 + 1, top: y0 - 300 + wordState.baseline, adv: advDot };
+  const full = wordState.adv.reduce((s, r) => s + r[r.length - 1] + TRACK, 0) + advDot;
+  wordState.x0 = (W - full) / 2;
+  for (const ch of WORD) {
+    const s = document.createElement("span");
+    s.className = "glyph";
+    s.textContent = ch;
+    host.appendChild(s);
+    wordState.glyphs.push(s);
+  }
+}
+function fitGlyph(row, target) {
+  const wd = wordState.wdths;
+  if (target <= row[0]) return { wdth: wd[0], sx: row[0] > 0 ? target / row[0] : 0 };
+  for (let i = 1; i < row.length; i++) if (target <= row[i]) return { wdth: lerp(wd[i - 1], wd[i], (target - row[i - 1]) / (row[i] - row[i - 1])), sx: 1 };
+  return { wdth: wd[wd.length - 1], sx: target / row[row.length - 1] };
+}
+/* 1 = full word, 0 = letters gone into the period. */
+const squeeze = (t) => (t < B(30) ? clamp(1 - step(t, B(1), 1.25, 0.86), 0, 1.2) : clamp(step(t, B(56), 1.5, 0.42), 0, 1.3));
+
+const TILES = [
+  { id: "A", src: "aligned-melon-mode.png", c: 1, r: 0, hinge: "bottom", bento: { x: 60, y: 60, w: 652, h: 652 } },
+  { id: "B", src: "melon-tab.png", c: 1, r: 1, hinge: null, bento: { x: 728, y: 60, w: 318, h: 318 } },
+  { id: "C", src: "blue-berries.png", c: 2, r: 0, hinge: "left", bento: { x: 1062, y: 60, w: 318, h: 318 } },
+  { id: "D", src: "fruit-sculptures.png", c: 2, r: 1, hinge: "left", bento: { x: 728, y: 394, w: 652, h: 318 } },
+  { id: "E", src: "melon-burst.png", c: 0, r: 1, hinge: "right", bento: { x: 60, y: 728, w: 318, h: 652 } },
+  { id: "F", src: "blue-stickers.png", c: 1, r: 2, hinge: "top", bento: { x: 394, y: 728, w: 652, h: 318 } },
+  { id: "G", src: "melon-ring.png", c: 2, r: 2, hinge: "left", bento: { x: 1062, y: 728, w: 318, h: 652 } },
+  { id: "H", src: "blue-can-burst.png", c: 0, r: 0, hinge: "right", bento: { x: 394, y: 1062, w: 318, h: 318 } },
+  { id: "I", src: "melon-droplets.png", c: 0, r: 2, hinge: "right", bento: { x: 728, y: 1062, w: 318, h: 318 } },
+];
+const CORNERS = new Set(["C", "G", "H", "I"]);
+const gridRect = (c, r) => ({ x: 570 + (c - 1) * 316, y: 570 + (r - 1) * 316, w: 300, h: 300 });
+const IRIS_R = 430;
+const tileEls = {};
+function buildTiles() {
+  for (const tl of TILES) {
+    const d = document.createElement("div");
+    d.className = "tile";
+    d.innerHTML = `<img class="cover" src="assets/film/${tl.src}"><div class="shade"></div>`;
+    $("tiles").appendChild(d);
+    tileEls[tl.id] = d;
+  }
+  // centre tile on top so the others unfold from behind it
+  $("tiles").appendChild(tileEls.B);
+}
+
+function renderOpen(t) {
+  const k = squeeze(t);
+  const { glyphs, adv, dot, base } = wordState;
+  const fullW = adv.map((r) => r[r.length - 1] + TRACK);
+  const anchor = wordState.x0 + fullW.reduce((a, b) => a + b, 0);
+  const inkLeft = anchor + dot.lsb;
+  const spanTop = base - wordState.baseline;
+  let x = wordState.x0;
+  glyphs.forEach((g, i) => {
+    const target = Math.max(0, adv[i][adv[i].length - 1] * k);
+    const fit = fitGlyph(adv[i], target);
+    g.style.left = px(inkLeft - (inkLeft - x) * k);
+    g.style.top = px(spanTop);
+    g.style.fontVariationSettings = `"wdth" ${fit.wdth.toFixed(2)}, "wght" 800`;
+    g.style.transform = `scaleX(${fit.sx.toFixed(4)})`;
+    g.style.visibility = target < 0.5 ? "hidden" : "inherit";
+    x += fullW[i];
+  });
+
+  // --- dot / pill
+  const dotC = { x: inkLeft + dot.w / 2, y: spanTop + dot.top + dot.h / 2 };
+  const dotR = { x: inkLeft, y: spanTop + dot.top, w: dot.w, h: dot.h, r: 2 };
+  const pillR = { x: W / 2 - 390, y: W / 2 - 75, w: 780, h: 150, r: 75 };
+  let rect, labelA = false, labelB = false;
+  const dEl = $("dot");
+  if (t < B(30)) {
+    const g = step(t, B(2), 1.5, 0.6);
+    rect = mixRect(dotR, pillR, g);
+    rect.r = lerp(2, 75, clamp(g));
+    labelA = true;
+    // click squash at beat 4
+    const sq = step(t, B(4), 3, 0.45) - step(t, B(4.18), 3, 0.45);
+    dEl.style.transform = `scale(${1 - 0.05 * sq})`;
+    vis(dEl, t < B(5.6));
+  } else {
+    const full = { x: -240, y: -240, w: W + 480, h: W + 480, r: 0 };
+    const c = step(t, B(53), 1.35, 0.8);
+    const g = step(t, B(54), 1.6, 0.72);
+    rect = mixRect(mixRect(full, pillR, c), dotR, g);
+    rect.r = lerp(lerp(0, 75, clamp(c)), 2, clamp(g));
+    const inhale = step(t, B(55), 2.2, 0.5) - step(t, B(55.7), 2.2, 0.5);
+    dEl.style.transform = `scale(${1 - 0.28 * inhale})`;
+    labelB = true;
+    vis(dEl, true);
+  }
+  setBox(dEl, rect);
+  $("pill-a").style.transform = `translateY(${riseY(t, 3)}%)`;
+  vis($("pill-a").parentElement, labelA);
+  setRise($("pill-b"), t, 53.15, 53.85);
+  vis($("pill-b").parentElement, labelB);
+
+  // --- tagline under the returned wordmark
+  const tg = $("tagline");
+  tg.style.top = px(base + 120);
+  setRise($("tagline-in"), t, 57.4, 59.0);
+  vis(tg, t > B(57));
+
+  // --- iris over the pill (5 close, 6 open onto the photo)
+  const irisOn = within(t, 5, 6.7);
+  const openness = 1 - step(t, B(5), 2.4, 0.78) + step(t, B(6), 2.6, 0.6);
+  vis($("iris-open"), irisOn);
+  if (irisOn) drawIris($("iris-open"), W / 2, W / 2, IRIS_R, openness, "iris-open-clip");
+
+  // --- tiles
+  const tilesOn = within(t, 5.5, 12.2);
+  vis($("tiles"), tilesOn);
+  if (tilesOn) {
+    const reflow = step(t, B(10), 1.3, 0.78);
+    const zoomK = inOutQuart(prog(t, B(11), B(1)));
+    for (const tl of TILES) {
+      const el = tileEls[tl.id];
+      const grid = gridRect(tl.c, tl.r);
+      let r;
+      if (tl.id === "B") {
+        const circle = circleRect(W / 2, W / 2, IRIS_R * 2);
+        r = mixRect(circle, { ...grid, r: 18 }, step(t, B(7), 1.5, 0.76));
+        r = mixRect(r, { ...tl.bento, r: 22 }, reflow);
+        vis(el, true);
+        el.style.transform = "none";
+        el.querySelector(".shade").style.opacity = "0";
+      } else {
+        const u = step(t, B(CORNERS.has(tl.id) ? 9 : 8), 1.7, 0.72);
+        r = mixRect({ ...grid, r: 18 }, { ...tl.bento, r: 22 }, reflow);
+        const axis = tl.hinge === "left" || tl.hinge === "right" ? "X" : "Y";
+        el.style.transformOrigin = { left: "0 50%", right: "100% 50%", top: "50% 0", bottom: "50% 100%" }[tl.hinge];
+        el.style.transform = `scale${axis}(${Math.max(0, u).toFixed(4)})`;
+        el.querySelector(".shade").style.opacity = String(0.55 * clamp(1 - u));
+        vis(el, u > 0.001);
+      }
+      if (tl.id === "A") r.r = r.r * (1 - zoomK);
+      setBox(el, r);
+    }
+  }
+
+  // Camera: follow the squeeze into the dot, then the bento zoom onto tile A.
+  const inK = t < B(30) ? clamp(1 - k) : 0;
+  const gc = t < B(30) ? clamp(step(t, B(2), 1.5, 0.6)) : 1;
+  let focus = [lerp(lerp(W / 2, dotC.x, inK * 0.8), W / 2, gc), lerp(lerp(W / 2, dotC.y, inK * 0.8), W / 2, gc)];
+  let s = lerp(1 + 0.45 * inK, 1, gc);
+  if (t >= B(30)) { focus = [W / 2, W / 2]; s = 1; }
+  if (t >= B(10.9) && t < B(12)) {
+    const z = inOutQuart(prog(t, B(11), B(1)));
+    const A = TILES[0].bento;
+    const sA = W / A.w;
+    s = Math.exp(lerp(0, Math.log(sA), z));
+    // Keep tile A's centre gliding to the frame centre in screen space.
+    const fx = lerp(W / 2, A.x + A.w / 2, z), fy = lerp(W / 2, A.y + A.h / 2, z);
+    focus = [fx, fy];
+  }
+  return { focus, s };
+}
+
+/* =============================================================== GLASS == */
+const IMG = (src, style = "") => `<img src="${src}" style="position:absolute;left:0;top:0;width:1440px;height:1440px;${style}">`;
+function buildPhoto(host) {
+  host.innerHTML = IMG("assets/film/aligned-melon-mode.png") + `<div class="abs blue" style="left:0;top:0;width:1440px;height:1440px">${IMG("assets/film/aligned-blueberry-spirulina.png")}</div>`;
+  return { blue: host.querySelector(".blue") };
+}
+const photoMain = buildPhoto($("photo-host"));
+const SL = { x: 170, y: 1040, w: 1100, h: 124, r: 62 };
+const SLC = { x: W / 2, y: SL.y + SL.h / 2 };
+const KX0 = SL.x + 92, KX1 = SL.x + SL.w - 92;
+const ORB = circleRect(W / 2, 620, 580);
+const sliderGlass = makeGlass($("slider-glass-host"), (c) => buildPhoto(c));
+const lensGlass = makeGlass($("lens-glass-host"), (c) => buildPhoto(c));
+const fizzGlass = makeMaskGlass($("fizz-host"), (c) => buildPhoto(c));
+
+$("slider-ui").innerHTML = `
+  <div class="abs" id="sl-track" style="height:4px;border-radius:2px;background:rgba(255,255,255,0.35);transform-origin:0 50%"></div>
+  <div class="abs" id="sl-fill" style="height:4px;border-radius:2px;background:#fff"></div>
+  <div class="abs" id="sl-dot-a" style="width:22px;height:22px;border-radius:50%;background:#D92F43;box-shadow:0 0 0 3px rgba(255,255,255,0.85)"></div>
+  <div class="abs" id="sl-dot-b" style="width:22px;height:22px;border-radius:50%;background:#2D6BE4;box-shadow:0 0 0 3px rgba(255,255,255,0.85)"></div>
+  <svg class="abs" id="ic-flavor" width="64" height="64" viewBox="0 0 64 64"><circle cx="25" cy="32" r="15" fill="#D92F43" stroke="#fff" stroke-width="3"/><circle cx="39" cy="32" r="15" fill="#2D6BE4" stroke="#fff" stroke-width="3"/></svg>
+  <svg class="abs" id="ic-adjust" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"><path d="M12 20h40M12 32h40M12 44h40"/><circle cx="24" cy="20" r="5" fill="#0B0B0C"/><circle cx="40" cy="32" r="5" fill="#0B0B0C"/><circle cx="28" cy="44" r="5" fill="#0B0B0C"/></svg>
+  <svg class="abs" id="ic-share" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 10v28M22 20l10-10 10 10"/><path d="M20 30h-6v24h36V30h-6"/></svg>`;
+$("slider-labels").innerHTML = `
+  <div class="abs mask" id="lab-a" style="font-weight:600;font-size:34px;letter-spacing:-0.01em;color:#fff"><span id="lab-a-in">Melon Mode</span></div>
+  <div class="abs mask" id="lab-b" style="font-weight:600;font-size:34px;letter-spacing:-0.01em;color:#fff;text-align:right"><span id="lab-b-in">Blueberry Spirulina</span></div>`;
+
+/* Glass word "fizz": glyph masks drawn into one canvas, then goo (blur +
+   threshold) as the letters pull together and melt into a droplet. */
+const FIZZ = { text: "fizz", size: 400, glyphs: [], region: { x: 140, y: 250, w: 1160, h: 1000 } };
+function buildFizz() {
+  const c = document.createElement("canvas").getContext("2d");
+  c.font = `800 ${FIZZ.size}px Archivo`;
+  c.fontStretch = "expanded";
+  let total = 0;
+  const adv = [...FIZZ.text].map((ch) => c.measureText(ch).width * 0.96);
+  total = adv.reduce((a, b) => a + b, 0);
+  let x = W / 2 - total / 2;
+  [...FIZZ.text].forEach((ch, i) => {
+    const g = document.createElement("canvas");
+    const pad = 30;
+    g.width = Math.ceil(adv[i] + pad * 2); g.height = Math.ceil(FIZZ.size * 1.1 + pad * 2);
+    const gc = g.getContext("2d");
+    gc.font = `800 ${FIZZ.size}px Archivo`;
+    gc.fontStretch = "expanded";
+    gc.fillStyle = "#000";
+    gc.fillText(ch, pad, pad + FIZZ.size * 0.9);
+    FIZZ.glyphs.push({ canvas: g, cx: x + adv[i] / 2, cy: 640, pad });
+    x += adv[i];
+  });
+}
+function fizzMask(t) {
+  const { region } = FIZZ;
+  const can = document.createElement("canvas");
+  can.width = region.w; can.height = region.h;
+  const ctx = can.getContext("2d");
+  const gooK = step(t, B(14), 1.4, 0.8);
+  const conv = step(t, B(15), 1.25, 0.78);
+  const blur = 16 * clamp(gooK) + 8 * clamp(conv);
+  ctx.filter = blur > 0.3 ? `blur(${blur.toFixed(2)}px)` : "none";
+  const wordCx = W / 2;
+  FIZZ.glyphs.forEach((g, i) => {
+    const pop = Math.max(0, step(t, B(13 + i * 0.25), 2.4, 0.48));
+    const pull = 1 - 0.16 * clamp(gooK);                       // letters slide together to goo
+    let cx = wordCx + (g.cx - wordCx) * pull, cy = g.cy;
+    cx = lerp(cx, SLC.x, conv); cy = lerp(cy, SLC.y, conv);
+    const s = pop * (1 - 0.9 * clamp(conv));
+    if (s < 0.01) return;
+    const w = g.canvas.width * s, h = g.canvas.height * s;
+    ctx.drawImage(g.canvas, cx - w / 2 - region.x, cy - h / 2 - region.y + FIZZ.size * 0.05 * s, w, h);
+  });
+  const drop = 124 * clamp(step(t, B(15.2), 1.6, 0.72), 0, 1.15);
+  if (drop > 0.5) {
+    ctx.beginPath(); ctx.arc(SLC.x - region.x, SLC.y - region.y, drop / 2, 0, Math.PI * 2); ctx.fillStyle = "#000"; ctx.fill();
+  }
+  if (blur > 0.3) {
+    // Alpha threshold, antialiased over a narrow band.
+    const img = ctx.getImageData(0, 0, can.width, can.height);
+    const d = img.data;
+    for (let i = 3; i < d.length; i += 4) d[i] = clamp((d[i] - 118) * 10 + 128, 0, 255);
+    ctx.putImageData(img, 0, 0);
+  }
+  return can;
+}
+
+function renderGlass(t) {
+  const drag = inOutCubic(prog(t, B(18.2), B(1.8)));
+  const knobX = lerp(KX0, KX1, drag);
+  const knobY = SLC.y;
+  const clip = `inset(0 ${W - knobX}px 0 0)`;
+  for (const p of [photoMain, sliderGlass.clone, lensGlass.clone, fizzGlass.clone]) p.blue.style.clipPath = clip;
+
+  // fizz (13-16)
+  const fizzOn = within(t, 13, 16);
+  vis(fizzGlass.el, fizzOn);
+  if (fizzOn) fizzGlass.set(FIZZ.region.x, FIZZ.region.y, fizzMask(t), { strength: 120, edge: 34, tint: 0.13 });
+
+  // slider glass: droplet -> toolbar -> slider -> collapses at 21
+  const drop = circleRect(SLC.x, SLC.y, 124);
+  const slRect = rectTrack(drop, [
+    [B(16), { ...SL }, 1.25, 0.6],
+    [B(21), circleRect(KX1, SLC.y, 2), 1.6, 0.8],
+  ])(t);
+  const sliderOn = within(t, 16, 21.6) && slRect.w > 3;
+  vis(sliderGlass.el, sliderOn);
+  vis($("slider-shadow"), sliderOn);
+  if (sliderOn) {
+    sliderGlass.set(slRect.x, slRect.y, slRect.w, slRect.h, slRect.r, { strength: 90, edge: 0.55, tint: 0.03 });
+    setBox($("slider-shadow"), slRect);
+  }
+
+  // toolbar icons pop at 16.3, vanish when flavor is clicked at 17
+  const icons = ["ic-flavor", "ic-adjust", "ic-share"];
+  icons.forEach((id, i) => {
+    const el = $(id);
+    const s = Math.max(0, step(t, B(16.35 + i * 0.12), 2.6, 0.5) - step(t, B(17.05 + i * 0.05), 2.6, 0.75));
+    const cx = slRect.x + slRect.w * (0.25 + 0.25 * i);
+    Object.assign(el.style, { left: px(cx - 32), top: px(SLC.y - 32), transform: `scale(${s})` });
+    vis(el, within(t, 16, 17.8) && s > 0.01);
+  });
+
+  // slider track grows out of the flavor icon at 17.1
+  const tg = clamp(step(t, B(17.1), 1.7, 0.8)) * clamp(1 - step(t, B(20.9), 2, 0.8));
+  const trOn = within(t, 17, 21.5) && tg > 0.01;
+  ["sl-track", "sl-fill", "sl-dot-a", "sl-dot-b"].forEach((id) => vis($(id), trOn));
+  if (trOn) {
+    const tr = $("sl-track"), fl = $("sl-fill");
+    Object.assign(tr.style, { left: px(KX0), top: px(knobY - 2), width: px(KX1 - KX0), transform: `scaleX(${tg})` });
+    Object.assign(fl.style, { left: px(KX0), top: px(knobY - 2), width: px(Math.max(0, knobX - KX0) * tg) });
+    const ds = Math.max(0, step(t, B(17.25), 2.6, 0.5) - step(t, B(20.9), 2.6, 0.8));
+    Object.assign($("sl-dot-a").style, { left: px(KX0 - 11 - 46), top: px(knobY - 11), transform: `scale(${ds})` });
+    Object.assign($("sl-dot-b").style, { left: px(KX1 - 11 + 46), top: px(knobY - 11), transform: `scale(${ds})` });
+  }
+  const la = $("lab-a"), lb = $("lab-b");
+  Object.assign(la.style, { left: px(SL.x + 28), top: px(SL.y + SL.h + 22), color: `rgba(255,255,255,${lerp(1, 0.5, drag)})` });
+  Object.assign(lb.style, { left: px(SL.x + SL.w - 528), width: "500px", top: px(SL.y + SL.h + 22), color: `rgba(255,255,255,${lerp(0.5, 1, drag)})` });
+  setRise($("lab-a-in"), t, 17.35, 20.85);
+  setRise($("lab-b-in"), t, 17.45, 20.9);
+  vis(la, within(t, 17, 21.5)); vis(lb, within(t, 17, 21.5));
+
+  // knob: a small glass bead that becomes a lens while held, then lifts into the orb
+  const held = step(t, B(18), 2.2, 0.55);
+  const knob = circleRect(knobX, knobY, lerp(96, 176, held));
+  let lens = mixRect(knob, ORB, step(t, B(21), 1.15, 0.72));
+  const lensOn = within(t, 17.2, 24.3);
+  const appear = clamp(step(t, B(17.25), 2.4, 0.55), 0, 1.2);
+  if (t < B(18)) lens = circleRect(knobX, knobY, 96 * appear);
+  vis(lensGlass.el, lensOn && lens.w > 2);
+  vis($("lens-shadow"), lensOn && lens.w > 2);
+  return { knobX, knobY, held: clamp(held) - clamp(step(t, B(21), 3, 0.8)), lens, lensOn };
+}
+function placeLens(t, lens, lockR) {
+  // From beat 23 the orb rides the expanding lock screen, its rim just outside.
+  let r = lens;
+  if (t >= B(22.9) && lockR) r = { x: lockR.x - 40, y: lockR.y - 40, w: lockR.w + 80, h: lockR.h + 80, r: (lockR.r ?? 0) + 40 };
+  lensGlass.set(r.x, r.y, r.w, r.h, r.r, { strength: lerp(50, 130, clamp((r.w - 96) / 300)), edge: 0.6, power: 1.6, tint: 0.04 });
+  setBox($("lens-shadow"), r);
+}
+
+/* =============================================================== STAGE == */
+const PHONE = { x: 78, y: 640, w: 330, h: 690, r: 58, bez: 13 };
+const PS = { x: PHONE.x + PHONE.bez, y: PHONE.y + PHONE.bez, w: PHONE.w - 2 * PHONE.bez, h: PHONE.h - 2 * PHONE.bez, r: PHONE.r - PHONE.bez };
+const MAC = { x: 352, y: 290, w: 1010, h: 820, r: 22 };
+const PAGE = { x: MAC.x, y: MAC.y + 104, w: MAC.w, h: MAC.h - 104 };
+const SLOT = { x: 560, y: 70, w: 380, h: 600 };                 // page coords
+const PANEL = { x: 295, y: 26, w: 420, h: 668 };
+const PIMG = { x: 315, y: 46, w: 380, h: 300 };
+const BTN = { x: 520, y: 616, w: 175, h: 56 };
+const SW_RED = { x: 338, y: 474 }, SW_BLUE = { x: 384, y: 474 };
+const SEG = { x: 315, y: 512, w: 380, h: 52 };
+const NAVBUY = { x: 858, y: 12, w: 48, h: 26 };
+const toScene = (p) => ({ x: PAGE.x + p.x, y: PAGE.y + p.y });
+
+const lockTrack = rectTrack({ x: W / 2, y: 620, w: 0, h: 0, r: 0 }, [
+  [B(22), circleRect(W / 2, 620, 500), 1.6, 0.7],
+  [B(23), { x: 0, y: 0, w: W, h: W, r: 0 }, 1.2, 0.8],
+  [B(26), PS, 1.15, 0.8],
+]);
+let notifGlass, playerGlass, clockGlass;
+const wallClone = (c) => { c.innerHTML = `<img class="cover" src="assets/film/blue-can.png">`; return {}; };
+
+function buildStage() {
+  const L = $("L-stage");
+  L.innerHTML = `
+    <div class="phone-body" id="phone-body"></div>
+    <div id="lock">
+      <img class="cover" src="assets/film/blue-can.png">
+      <div class="abs mask" id="lock-date" style="left:0;width:100%;text-align:center;color:rgba(255,255,255,0.95);font-weight:600"><span id="lock-date-in">Thursday, 15 October</span></div>
+      <div id="lock-glass"></div>
+      <div class="abs" id="notif-content" style="width:1238px;height:190px;transform-origin:0 0">
+        <div class="abs" style="left:34px;top:40px;width:110px;height:110px;border-radius:26px;background:#E6006E;display:grid;place-items:center;color:#fff;font-family:Archivo;font-weight:800;font-size:72px;font-variation-settings:'wdth' 110">k</div>
+        <div class="abs" style="left:176px;top:44px;color:#fff;font-weight:700;font-size:44px">Klyte</div>
+        <div class="abs" style="left:176px;top:102px;color:rgba(255,255,255,0.92);font-weight:500;font-size:40px">Time to hydrate. Your can is cold.</div>
+        <div class="abs" style="right:40px;top:48px;color:rgba(255,255,255,0.7);font-weight:500;font-size:34px">now</div>
+      </div>
+      <div class="abs" id="player-content" style="width:1238px;height:317px;transform-origin:0 0">
+        <img class="abs" src="assets/film/melon-can-fruit.png" style="left:34px;top:34px;width:150px;height:150px;border-radius:24px;object-fit:cover">
+        <div class="abs" style="left:216px;top:52px;color:#fff;font-weight:700;font-size:46px">What About Action?</div>
+        <div class="abs" style="left:216px;top:112px;color:rgba(255,255,255,0.8);font-weight:500;font-size:38px">Diego Nava</div>
+        <div class="abs" style="left:34px;top:226px;width:1170px;height:10px;border-radius:5px;background:rgba(255,255,255,0.35)"></div>
+        <div class="abs" id="player-prog" style="left:34px;top:226px;height:10px;border-radius:5px;background:#fff"></div>
+        <svg class="abs" style="left:1060px;top:62px" width="110" height="110" viewBox="0 0 110 110"><rect x="30" y="24" width="16" height="62" rx="4" fill="#fff"/><rect x="64" y="24" width="16" height="62" rx="4" fill="#fff"/></svg>
+      </div>
+      <div class="abs" id="homebar" style="background:#fff"></div>
+    </div>
+    <div class="abs" id="goo" style="left:0;top:0;width:1440px;height:1440px;filter:url(#goo)">
+      <div class="abs" id="island" style="background:#000"></div>
+      <div class="abs" id="droplet" style="background:#000"></div>
+    </div>
+    <div class="win" id="mac">
+      <div class="titlebar">
+        <span class="light" style="background:#FF5F57"></span><span class="light" style="background:#FEBC2E"></span><span class="light" style="background:#28C840"></span>
+        <span class="tab"><div id="tab-a"><span style="width:16px;height:16px;border-radius:4px;background:#3A3A3C;display:inline-block"></span>Start Page</div><div id="tab-b"><span style="width:16px;height:16px;border-radius:50%;background:#E6006E;display:inline-block"></span>Klyte — Outgrow the Ordinary</div></span>
+      </div>
+      <div class="abs" style="left:0;right:0;top:52px;height:52px;background:#161617;border-top:1px solid #222">
+        <div class="url"><div id="url-a">Search or enter website name</div><div id="url-b">klyte.in</div></div>
+      </div>
+      <div class="abs" id="page" style="left:0;top:104px;width:${MAC.w}px;height:${MAC.h - 104}px;overflow:hidden;background:#0B0B0C">
+        <div class="abs" id="page-blank" style="left:0;top:0;width:100%;height:100%;background:#1A1A1C">
+          <div class="abs" style="left:0;right:0;top:250px;text-align:center;color:rgba(244,241,234,0.35);font-weight:600;font-size:34px">Favourites</div>
+          <div class="abs" style="left:355px;top:320px;display:flex;gap:28px">
+            <span style="width:72px;height:72px;border-radius:18px;background:#2A2A2C;display:inline-block"></span>
+            <span style="width:72px;height:72px;border-radius:18px;background:#E6006E;display:inline-block"></span>
+            <span style="width:72px;height:72px;border-radius:18px;background:#2A2A2C;display:inline-block"></span>
+          </div>
+        </div>
+        <div class="abs" id="page-site" style="left:0;top:0;width:100%;height:100%;background:#0B0B0C">
+          <div class="abs" id="site-scroll" style="left:0;top:0;width:100%;height:100%">
+            <div class="abs" style="left:0;top:52px;width:100%;height:700px;overflow:hidden"><img src="assets/film/site-hero-blue.png" style="position:absolute;left:0;top:-60px;width:100%"></div>
+            <div class="abs" id="slot-mask" style="background:#0B0B0C"></div>
+            <div class="abs" id="slot"></div>
+          </div>
+          <div class="abs" style="left:0;top:0;width:100%;height:52px;overflow:hidden;background:#0B0B0C"><img src="assets/film/site-hero-blue.png" style="position:absolute;left:0;top:-8px;width:100%"></div>
+          <div class="abs" id="navbuy-cover" style="background:#0B0B0C"></div>
+          <div class="abs" id="panel" style="background:#F7F5F0;overflow:hidden">
+            <div class="panel-text" id="pt-title" style="font-weight:700;font-size:30px;color:#0B0B0C"><span id="pt-title-a">Blueberry Spirulina</span></div>
+            <div class="panel-text" id="pt-title2" style="font-weight:700;font-size:30px;color:#0B0B0C"><span id="pt-title-b">Melon Mode</span></div>
+            <div class="panel-text" id="pt-sub" style="font-weight:500;font-size:19px;color:rgba(11,11,12,0.55)"><span id="pt-sub-in">Sparkling electrolyte · 250 ml</span></div>
+            <div class="abs" id="sw-ring" style="width:44px;height:44px;border-radius:50%;border:3px solid #0B0B0C;box-sizing:border-box"></div>
+            <div class="abs" id="sw-red" style="width:32px;height:32px;border-radius:50%;background:#D92F43"></div>
+            <div class="abs" id="sw-blue" style="width:32px;height:32px;border-radius:50%;background:#2D6BE4"></div>
+            <div class="abs" id="seg" style="border-radius:26px;background:#E9E6DF">
+              <div class="abs" id="seg-pill" style="border-radius:22px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.12)"></div>
+              <div class="abs" style="left:0;top:0;width:50%;height:100%;display:grid;place-items:center;font-weight:600;font-size:19px">6-pack</div>
+              <div class="abs" style="left:50%;top:0;width:50%;height:100%;display:grid;place-items:center;font-weight:600;font-size:19px">12-pack</div>
+            </div>
+            <div class="abs" id="price" style="font-weight:700;font-size:36px;display:flex;color:#0B0B0C">
+              <span>₹</span><span class="mask" style="position:relative;display:inline-block;height:44px;width:22px"><span id="digit" style="position:absolute;left:0;top:0;line-height:44px">3<br>6</span></span><span>29</span>
+            </div>
+          </div>
+          <div class="abs" id="pimg" style="overflow:hidden">
+            <img class="cover" src="assets/film/blue-can.png">
+            <div class="abs" id="pimg-melon" style="left:0;top:0;width:100%;height:100%"><img class="cover" src="assets/film/melon-ring.png"></div>
+          </div>
+        </div>
+      </div>
+      <div class="abs" id="blind" style="left:0;top:0;width:100%;background:#000">
+        <div class="abs" style="left:0;right:0;bottom:0;height:26px;background:linear-gradient(180deg,#000 0%,#3A3D40 45%,#16181A 70%,#000 100%)"></div>
+      </div>
+    </div>
+    <div class="abs" id="card" style="overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.35)"><img class="cover" src="assets/film/blue-can.png"></div>
+    <div class="abs" id="flybtn" style="background:#0B0B0C;color:#fff;overflow:hidden;font-weight:600">
+      <div class="abs mask" style="inset:0;display:grid;place-items:center"><span id="flybtn-a" style="font-size:14px">Buy</span></div>
+      <div class="abs mask" style="inset:0;display:grid;place-items:center"><span id="flybtn-b" style="font-size:22px">Get it cold</span></div>
+    </div>`;
+  notifGlass = makeGlass($("lock-glass"), wallClone);
+  playerGlass = makeGlass($("lock-glass"), wallClone);
+  clockGlass = makeMaskGlass($("lock-glass"), wallClone);
+  $("lock-glass").appendChild($("notif-content"));
+  $("lock-glass").appendChild($("player-content"));
+}
+
+const clockCache = new Map();
+function clockMask(t, size) {
+  // "4:00", digits pop one by one at beat 24.
+  const pops = [0, 1, 2, 3].map((i) => Math.max(0, step(t, B(24 + i * 0.1), 2.5, 0.5)));
+  const key = `${Math.round(size)}|${pops.map((p) => p.toFixed(3)).join(",")}`;
+  if (clockCache.has(key)) return clockCache.get(key);
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  ctx.font = `700 ${size}px Geist`;
+  const chars = ["4", ":", "0", "0"];
+  const adv = chars.map((ch) => ctx.measureText(ch).width);
+  const total = adv.reduce((a, b) => a + b, 0);
+  c.width = Math.ceil(total + 40); c.height = Math.ceil(size * 1.05 + 20);
+  const cx = c.getContext("2d");
+  cx.font = `700 ${size}px Geist`;
+  cx.fillStyle = "#000";
+  let x = 20;
+  chars.forEach((ch, i) => {
+    const s = pops[i];
+    if (s > 0.01) {
+      cx.save();
+      cx.translate(x + adv[i] / 2, 10 + size * 0.5);
+      cx.scale(s, s);
+      cx.fillText(ch, -adv[i] / 2, size * 0.36);
+      cx.restore();
+    }
+    x += adv[i];
+  });
+  if (clockCache.size > 300) clockCache.clear();
+  clockCache.set(key, c);
+  return c;
+}
+
+function renderStage(t) {
+  const L = lockTrack(t);
+  const lock = $("lock");
+  setBox(lock, L);
+  vis(lock, t >= B(22));
+  const S = L.w / W;                                          // UI scale with the screen width
+
+  // date + clock
+  const date = $("lock-date");
+  Object.assign(date.style, { top: px(L.h * 0.075), fontSize: px(Math.max(6, 44 * S)), height: px(Math.max(8, 56 * S)) });
+  setRise($("lock-date-in"), t, 24);
+  const clockOn = t >= B(23.9);
+  vis(clockGlass.el, clockOn);
+  if (clockOn) {
+    const m = clockMask(t, Math.max(20, 300 * S));
+    clockGlass.set(L.w / 2 - m.width / 2, L.h * 0.145, m, { strength: lerp(24, 110, S), edge: Math.max(4, 30 * S), cw: L.w, ch: L.h, tint: 0.18 });
+  }
+
+  // notification slides down from the top edge at 24.3
+  const nh = 190 * S, nw = 1238 * S, nx = L.w / 2 - nw / 2;
+  const ny = lerp(-nh - 20 * S, L.h * 0.42, step(t, B(24.3), 1.5, 0.7));
+  const notifOn = t >= B(24.2);
+  vis(notifGlass.el, notifOn); vis($("notif-content"), notifOn);
+  if (notifOn) {
+    notifGlass.set(nx, ny, nw, nh, 52 * S, { strength: 70 * S + 10, edge: 0.5, tint: 0.08, cw: L.w, ch: L.h });
+    Object.assign($("notif-content").style, { left: px(nx), top: px(ny), transform: `scale(${S})` });
+  }
+
+  // home bar stretches into the glass music player at 25
+  const bar = { w: L.w * 0.34, h: Math.max(4, 14 * S) };
+  const barR = { x: L.w / 2 - bar.w / 2, y: L.h - L.h * 0.028 - bar.h, w: bar.w, h: bar.h, r: bar.h / 2 };
+  const plR = { x: L.w / 2 - 619 * S, y: L.h - 317 * S - L.h * 0.04, w: 1238 * S, h: 317 * S, r: 60 * S };
+  const pk = step(t, B(25), 1.3, 0.62);
+  const pr = mixRect(barR, plR, pk);
+  const hb = $("homebar");
+  setBox(hb, barR);
+  vis(hb, t >= B(23.6) && pk < 0.02);
+  const plOn = pk >= 0.02;
+  vis(playerGlass.el, plOn);
+  vis($("player-content"), plOn && pk > 0.6);
+  if (plOn) {
+    playerGlass.set(pr.x, pr.y, pr.w, pr.h, pr.r, { strength: 70 * S + 8, edge: 0.5, tint: lerp(0.9, 0.08, clamp(pk)), cw: L.w, ch: L.h });
+    Object.assign($("player-content").style, { left: px(plR.x), top: px(plR.y), transform: `scale(${S})` });
+    $("player-prog").style.width = px(1170 * clamp(0.18 + (t - B(25)) / 30));
+  }
+
+  // phone body: the bezel grows out of the screen edge
+  const bz = PHONE.bez * clamp(step(t, B(26.3), 1.8, 0.7), 0, 1.3);
+  const pb = $("phone-body");
+  setBox(pb, { x: L.x - bz, y: L.y - bz, w: L.w + 2 * bz, h: L.h + 2 * bz, r: (L.r ?? 0) + bz });
+  vis(pb, bz > 0.3);
+
+  // Dynamic Island: appears, stretches like liquid, pinches off a droplet
+  const isl = $("island"), drp = $("droplet");
+  const iOn = t >= B(26.6) && t < B(44.5);
+  vis($("goo"), iOn);
+  const ia = clamp(step(t, B(26.6), 2.2, 0.6), 0, 1.2);
+  const stretch = step(t, B(27), 1.6, 0.62) - step(t, B(27.55), 1.8, 0.7);
+  const iw = 96 * ia + 70 * stretch, ih = 28 * ia;
+  const ix = PS.x + PS.w / 2 - 48 * ia, iy = PS.y + 16;
+  setBox(isl, { x: ix, y: iy, w: iw, h: ih, r: ih / 2 });
+  // droplet: buds from the island's right end, separates, flies to the Mac
+  const bud = step(t, B(27.1), 1.5, 0.7);
+  const sep = step(t, B(27.45), 1.5, 0.75);
+  const fly = inOutCubic(prog(t, B(28), B(0.9)));
+  const p0 = { x: ix + 96 * ia + 6, y: iy + ih / 2 };
+  const p1 = { x: p0.x + 90 * sep, y: p0.y + 10 * sep };
+  const p2 = { x: MAC.x + MAC.w / 2, y: MAC.y + MAC.h / 2 };
+  const ctrl = { x: (p1.x + p2.x) / 2, y: Math.min(p1.y, p2.y) - 320 };
+  const bx = (1 - fly) ** 2 * p1.x + 2 * (1 - fly) * fly * ctrl.x + fly ** 2 * p2.x;
+  const by = (1 - fly) ** 2 * p1.y + 2 * (1 - fly) * fly * ctrl.y + fly ** 2 * p2.y;
+  const dd = lerp(26 * clamp(bud, 0, 1.1), 64, fly);
+  setBox(drp, circleRect(bx, by, dd));
+  vis(drp, t >= B(27.1) && t < B(28.9));
+
+  // Mac window grows out of the droplet, then the blind rolls up
+  const mac = $("mac");
+  const gw = step(t, B(28.75), 1.25, 0.76);
+  const mr = mixRect(circleRect(p2.x, p2.y, 64), MAC, gw);
+  mr.r = lerp(32, MAC.r, clamp(gw));
+  setBox(mac, mr);
+  vis(mac, t >= B(28.75));
+  const blindK = step(t, B(29.2), 1.25, 0.8);
+  $("blind").style.height = px(Math.max(0, MAC.h * (1 - blindK)));
+  vis($("blind"), blindK < 0.995);
+
+  // tab + url swap when the page arrives
+  setRise($("tab-a"), t, -1, 32); setRise($("tab-b"), t, 32.1);
+  setRise($("url-a"), t, -1, 32); setRise($("url-b"), t, 32.1);
+
+  // page push at 32
+  const push = step(t, B(32), 1.5, 0.8);
+  $("page-blank").style.transform = `translateX(${-MAC.w * push}px)`;
+  $("page-site").style.transform = `translateX(${MAC.w * (1 - push)}px)`;
+
+  // scroll at 34: hero leaves, product panel grows out of the photo's edge
+  const scroll = step(t, B(34), 1.2, 0.82);
+  $("site-scroll").style.transform = `translateY(${-760 * scroll}px)`;
+  setBox($("slot-mask"), { x: SLOT.x - 30, y: SLOT.y - 20, w: SLOT.w + 60, h: 720 });
+  const lit = step(t, B(32.3), 2, 0.6);
+  Object.assign($("slot").style, {
+    left: px(SLOT.x), top: px(SLOT.y), width: px(SLOT.w), height: px(SLOT.h), borderRadius: "28px",
+    border: `3px dashed rgba(127,176,255,${0.35 + 0.65 * clamp(lit)})`, background: `rgba(45,107,228,${0.08 * clamp(lit)})`,
+  });
+
+  const panelK = step(t, B(34.3), 1.3, 0.72);
+  const pad = { l: PIMG.x - PANEL.x, t: PIMG.y - PANEL.y, r: PANEL.x + PANEL.w - PIMG.x - PIMG.w, b: PANEL.y + PANEL.h - PIMG.y - PIMG.h };
+  const panel = { x: PIMG.x - pad.l * panelK, y: PIMG.y - pad.t * panelK, w: PIMG.w + (pad.l + pad.r) * panelK, h: PIMG.h + (pad.t + pad.b) * panelK, r: lerp(18, 30, clamp(panelK)) };
+  const pEl = $("panel");
+  setBox(pEl, panel);
+  vis(pEl, t >= B(34.25));
+  const inPanel = (el, x, y) => { el.style.left = px(x - panel.x); el.style.top = px(y - panel.y); };
+  inPanel($("pt-title"), PIMG.x, 372); inPanel($("pt-title2"), PIMG.x, 372);
+  inPanel($("pt-sub"), PIMG.x, 416);
+  setRise($("pt-title-a"), t, 34.6, 35.05); setRise($("pt-title-b"), t, 35.1);
+  setRise($("pt-sub-in"), t, 34.7);
+  const swk = clamp(step(t, B(34.8), 2.4, 0.55), 0, 1.2);
+  inPanel($("sw-red"), SW_RED.x - 16, SW_RED.y - 16); inPanel($("sw-blue"), SW_BLUE.x - 16, SW_BLUE.y - 16);
+  $("sw-red").style.transform = $("sw-blue").style.transform = `scale(${swk})`;
+  const ringX = lerp(SW_BLUE.x, SW_RED.x, step(t, B(35), 2, 0.7));
+  inPanel($("sw-ring"), ringX - 22, SW_RED.y - 22);
+  $("sw-ring").style.transform = `scale(${swk})`;
+  const seg = $("seg");
+  inPanel(seg, SEG.x, SEG.y); seg.style.width = px(SEG.w); seg.style.height = px(SEG.h);
+  seg.style.transform = `scale(${clamp(step(t, B(34.9), 2, 0.7), 0, 1.1)})`;
+  const segK = step(t, B(36), 2, 0.72);
+  setBox($("seg-pill"), { x: 4 + (SEG.w / 2) * segK, y: 4, w: SEG.w / 2 - 8, h: SEG.h - 8 });
+  inPanel($("price"), PIMG.x, 622);
+  $("price").style.transform = `translateY(${(1 - clamp(step(t, B(35), 2, 0.75), 0, 1.1)) * 30}px)`;
+  $("digit").style.transform = `translateY(${-44 * step(t, B(36.05), 2, 0.7)}px)`;
+
+  // product image: the dropped card, repainted to melon at 35
+  const pimg = $("pimg");
+  const slotToImg = mixRect({ ...SLOT, r: 28 }, { ...PIMG, r: 18 }, scroll);
+  setBox(pimg, slotToImg);
+  vis(pimg, t >= B(33.25));
+  const paintR = 900 * clamp(step(t, B(35.05), 1.1, 0.85), 0, 1.05);
+  $("pimg-melon").style.clipPath = `circle(${paintR}px at ${SW_RED.x - slotToImg.x}px ${SW_RED.y - slotToImg.y}px)`;
+
+  // drag card: phone wallpaper -> over the tab -> hero slot
+  const from = { ...PS };
+  const thumb = { x: MAC.x + 120, y: MAC.y + 70, w: 150, h: 214, r: 20 };
+  const to = { x: PAGE.x + SLOT.x, y: PAGE.y + SLOT.y, w: SLOT.w, h: SLOT.h, r: 28 };
+  const a = step(t, B(31), 1.4, 0.72);
+  const b = step(t, B(32.45), 1.35, 0.72);
+  const card = {};
+  for (const key of RK) card[key] = from[key] + (thumb[key] - from[key]) * a + (to[key] - thumb[key]) * b;
+  const ce = $("card");
+  setBox(ce, card);
+  ce.style.transform = `rotate(${(clamp(a) - clamp(b)) * -6}deg)`;
+  vis(ce, within(t, 30.9, 33.3));
+
+  // nav "Buy" flies down into "Get it cold" at 37
+  const navR = { x: PAGE.x + NAVBUY.x, y: PAGE.y + NAVBUY.y, w: NAVBUY.w, h: NAVBUY.h, r: 13 };
+  const btnR = { x: PAGE.x + BTN.x, y: PAGE.y + BTN.y, w: BTN.w, h: BTN.h, r: 28 };
+  const fk = step(t, B(37), 1.35, 0.7);
+  const fb = $("flybtn");
+  const press = step(t, B(38), 4, 0.6) - step(t, B(38.15), 4, 0.6);
+  setBox(fb, mixRect(navR, btnR, fk));
+  fb.style.background = fk < 0.02 ? "#F4F1EA" : "#0B0B0C";
+  $("flybtn-a").style.color = "#0B0B0C";
+  fb.style.transform = `scale(${1 - 0.06 * press})`;
+  setRise($("flybtn-a"), t, -1, 37);
+  setRise($("flybtn-b"), t, 37.15);
+  vis(fb, within(t, 32.5, 39.1));
+  setBox($("navbuy-cover"), { x: NAVBUY.x - 4, y: NAVBUY.y - 2, w: NAVBUY.w + 8, h: NAVBUY.h + 4 });
+  vis($("navbuy-cover"), t >= B(32.5));
+
+  return {
+    L, card,
+    anchors: {
+      phone: { x: PS.x + PS.w * 0.55, y: PS.y + PS.h * 0.55 },
+      red: toScene(SW_RED), seg12: toScene({ x: SEG.x + SEG.w * 0.75, y: SEG.y + SEG.h / 2 }),
+      btn: { x: btnR.x + btnR.w * 0.5, y: btnR.y + btnR.h * 0.55 }, btnR,
+    },
+  };
+}
+
+/* =============================================================== ORDER == */
+function buildOrder() {
+  $("L-order").innerHTML = `
+    <div id="shape">
+      <div class="content" id="o1" style="font-size:54px">
+        <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="none" stroke="#fff" stroke-width="5" opacity="0.35"/><path id="o1-check" d="M19 33 l9 9 l18 -20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1"/></svg>
+        <span>Ordered</span>
+      </div>
+      <div class="content" id="o2" style="font-size:54px">
+        <svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="56" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="12"/><circle id="o2-arc" cx="70" cy="70" r="56" fill="none" stroke="#7FB0FF" stroke-width="12" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1" transform="rotate(-90 70 70)"/></svg>
+        <div style="display:flex;flex-direction:column;gap:6px"><span id="o2-temp" style="font-family:Archivo;font-weight:800;font-size:72px;font-variation-settings:'wdth' 100;line-height:1">4°C</span><span style="font-size:36px;opacity:0.7">Chilling</span></div>
+      </div>
+      <div class="content" id="o3" style="font-size:46px">
+        <svg width="560" height="220" viewBox="0 0 560 220" style="overflow:visible">
+          <path id="o3-route-bg" d="M20 170 C 140 170, 150 50, 280 70 S 420 190, 530 60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10" stroke-linecap="round"/>
+          <path id="o3-route" d="M20 170 C 140 170, 150 50, 280 70 S 420 190, 530 60" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1"/>
+          <circle cx="20" cy="170" r="14" fill="#fff"/>
+          <g id="o3-pin"><path d="M530 60 m0 -46 a22 22 0 0 1 22 22 c0 18 -22 34 -22 34 s-22 -16 -22 -34 a22 22 0 0 1 22 -22z" fill="#E6006E"/><circle cx="530" cy="36" r="8" fill="#fff"/></g>
+          <g id="o3-scooter"><rect x="-26" y="-22" width="44" height="22" rx="8" fill="#F4F1EA"/><rect x="10" y="-40" width="6" height="22" rx="3" fill="#F4F1EA"/><circle cx="-16" cy="4" r="9" fill="#0B0B0C" stroke="#F4F1EA" stroke-width="5"/><circle cx="14" cy="4" r="9" fill="#0B0B0C" stroke="#F4F1EA" stroke-width="5"/></g>
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:8px"><span>On its way</span><span style="font-size:36px;opacity:0.7" id="o3-eta">10 min</span></div>
+      </div>
+      <div class="content" id="o4" style="font-size:40px;flex-direction:column;gap:10px">
+        <svg width="110" height="110" viewBox="0 0 64 64"><path id="o4-check" d="M17 33 l10 10 l20 -22" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1"/></svg>
+        <span>Delivered</span>
+      </div>
+    </div>`;
+}
+const PILL1 = { x: W / 2 - 290, y: W / 2 - 80, w: 580, h: 160, r: 80 };
+const BOX2 = { x: W / 2 - 330, y: W / 2 - 130, w: 660, h: 260, r: 64 };
+const BOX3 = { x: W / 2 - 520, y: W / 2 - 170, w: 1040, h: 340, r: 70 };
+const CIRC4 = circleRect(W / 2, W / 2, 320);
+function renderOrder(t, btnR) {
+  const shape = $("shape");
+  const r = rectTrack({ ...btnR }, [
+    [B(39), PILL1, 1.4, 0.66], [B(40), BOX2, 1.5, 0.66], [B(41), BOX3, 1.4, 0.68], [B(43), CIRC4, 1.4, 0.64],
+  ])(t);
+  setBox(shape, r);
+  const pop = step(t, B(44), 3, 0.7);                          // squeeze as the pour begins
+  shape.style.transform = `scale(${1 - 0.04 * pop})`;
+  const contents = [["o1", 39.1, 40], ["o2", 40.1, 41], ["o3", 41.1, 43], ["o4", 43.1, 99]];
+  for (const [id, tin, tout] of contents) {
+    const el = $(id);
+    const y = riseY(t, tin, tout, 2, 0.76);
+    el.style.left = px(r.w / 2); el.style.top = px(r.h / 2);
+    el.style.transform = `translate(-50%, -50%) translateY(${y * 2.2}px)`;
+    vis(el, t >= B(tin - 0.2) && t < B(tout + 0.6));
+  }
+  $("o1-check").style.strokeDashoffset = String(1 - clamp(prog(t, B(39.2), 0.3)));
+  $("o2-arc").style.strokeDashoffset = String(1 - 0.82 * inOutCubic(prog(t, B(40.15), 0.5)));
+  $("o2-temp").textContent = `${Math.round(lerp(24, 4, inOutCubic(prog(t, B(40.15), 0.5))))}°C`;
+  const route = $("o3-route");
+  const rk = inOutCubic(prog(t, B(41.2), B(1.6)));
+  route.style.strokeDashoffset = String(1 - rk);
+  const L = route.getTotalLength();
+  const p = route.getPointAtLength(L * rk), q = route.getPointAtLength(Math.min(L, L * rk + 2));
+  const ang = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
+  $("o3-scooter").setAttribute("transform", `translate(${p.x} ${p.y - 16}) rotate(${clamp(ang, -35, 35)})`);
+  const pin = Math.max(0, step(t, B(42.6), 2.6, 0.45));
+  $("o3-pin").setAttribute("transform", `translate(530 60) scale(${pin}) translate(-530 -60)`);
+  $("o3-eta").textContent = `${Math.max(0, Math.round(10 * (1 - rk)))} min`;
+  $("o4-check").style.strokeDashoffset = String(1 - clamp(prog(t, B(43.25), 0.3)));
+}
+
+/* ================================================================ WALL == */
+const FRAME = { w: 640, h: 1138 };
+FRAME.x = (W - FRAME.w) / 2; FRAME.y = (W - FRAME.h) / 2;
+function buildWall() {
+  $("L-wall").innerHTML = `
+    <svg class="abs" id="pour" width="1440" height="1440" viewBox="0 0 1440 1440" style="left:0;top:0"><path id="pour-path" fill="#0B0B0C"/></svg>
+    <div class="abs" id="molding" style="background:#0B0B0C"></div>
+    <div class="abs" id="hole" style="overflow:hidden;background:#0B0B0C">
+      <canvas id="footage" width="720" height="1280" style="position:absolute"></canvas>
+      <img id="sculpt" src="assets/film/fruit-sculptures.png" style="position:absolute;object-fit:cover">
+      <svg class="abs" id="iris-wall" style="left:0;top:0"></svg>
+    </div>
+    <div class="abs mask" id="caption" style="left:0;width:1440px;text-align:center;font-family:Archivo;font-weight:800;font-size:46px;font-variation-settings:'wdth' 110;letter-spacing:-0.01em"><span id="caption-inner">Crack. Fizz. Outgrow.</span></div>
+    <svg class="abs" id="pour2" width="1440" height="1440" viewBox="0 0 1440 1440" style="left:0;top:0"><path id="pour2-path" fill="#0B0B0C"/></svg>`;
+}
+/* Pour-flood: a liquid surface rising past the corners, sloshing on a spring. */
+function pourPath(t, t0) {
+  const tau = Math.max(0, t - t0);
+  const rise = 1 - Math.pow(2, -10 * clamp(tau / 0.32));
+  const level = lerp(W + 160, -300, rise);
+  const slosh = Math.exp(-6 * tau) * Math.sin(2 * Math.PI * 3.2 * tau);
+  let d = `M -10 ${W + 10}`;
+  for (let x = -10; x <= W + 10; x += 20) {
+    const y = level + 90 * slosh * Math.sin(x / 210 + 1.3) + 26 * Math.sin(x / 75 + tau * 9) * (1 - rise * 0.6);
+    d += ` L ${x} ${y.toFixed(1)}`;
+  }
+  return d + ` L ${W + 10} ${W + 10} Z`;
+}
+let footageVideo = null;
+async function loadFootage() {
+  const blob = await (await fetch("assets/film/melon-intra.mp4")).blob();
+  footageVideo = document.createElement("video");
+  footageVideo.muted = true;
+  footageVideo.src = URL.createObjectURL(blob);
+  await new Promise((ok) => footageVideo.addEventListener("loadeddata", ok, { once: true }));
+}
+async function drawFootage(time) {
+  const v = footageVideo;
+  const target = Math.min(v.duration - 0.05, Math.round(time * 24) / 24 + 1 / 48);
+  if (Math.abs(v.currentTime - target) > 1e-3) {
+    await new Promise((ok) => { v.addEventListener("seeked", ok, { once: true }); v.currentTime = target; });
+  }
+  const c = $("footage");
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+}
+async function renderWall(t) {
+  $("pour-path").setAttribute("d", pourPath(t, B(44)));
+  vis($("pour"), t < B(46.4));
+  const c = step(t, B(46), 1.15, 0.78);
+  const big = { x: -240, y: -240, w: W + 480, h: W + 480 };
+  const bord = 26;
+  const mol = mixRect(big, { x: FRAME.x - bord, y: FRAME.y - bord, w: FRAME.w + 2 * bord, h: FRAME.h + 2 * bord }, c);
+  mol.r = lerp(0, 46, clamp(c));
+  setBox($("molding"), mol);
+  vis($("molding"), t >= B(46));
+  const o = step(t, B(46.25), 1.5, 0.7);
+  const hw = FRAME.w * clamp(o, 0, 1.06), hh = FRAME.h * clamp(o, 0, 1.06);
+  const hole = { x: W / 2 - hw / 2, y: W / 2 - hh / 2, w: hw, h: hh, r: lerp(hw / 2, 22, clamp(o)) };
+  setBox($("hole"), hole);
+  vis($("hole"), t >= B(46));
+  const inner = { left: px(FRAME.x - hole.x), top: px(FRAME.y - hole.y), width: px(FRAME.w), height: px(FRAME.h) };
+  Object.assign($("footage").style, inner);
+  Object.assign($("sculpt").style, inner);
+  if (t >= B(46)) await drawFootage(5.35 + (t - B(46)));
+  vis($("sculpt"), within(t, 50.3, 51.4));
+
+  // the same pull-tab iris, inside the frame: close, open on the sculptures, close
+  const iw = $("iris-wall");
+  const irisOn = within(t, 49.9, 52.6);
+  vis(iw, irisOn);
+  if (irisOn) {
+    iw.setAttribute("width", String(FRAME.w)); iw.setAttribute("height", String(FRAME.h));
+    iw.setAttribute("viewBox", `0 0 ${FRAME.w} ${FRAME.h}`);
+    Object.assign(iw.style, { left: inner.left, top: inner.top, width: inner.width, height: inner.height });
+    const openness = 1 - step(t, B(50), 2.8, 0.8) + step(t, B(50.35), 2.6, 0.6) - step(t, B(51), 2.8, 0.8);
+    drawIris(iw, FRAME.w / 2, FRAME.h / 2, Math.hypot(FRAME.w, FRAME.h) / 2 + 4, openness, "iris-wall-clip");
+  }
+  const capOn = t >= B(48.8);
+  vis($("caption"), capOn);
+  $("caption").style.top = px(FRAME.y + FRAME.h + 36);
+  setRise($("caption-inner"), t, 49, 51.8);
+  $("pour2-path").setAttribute("d", pourPath(t, B(52)));
+  vis($("pour2"), t >= B(52));
+}
+
+/* ============================================================== CURSOR == */
+const CUR_KEYS = [
+  // [beat, x, y]
+  [3.3, 1300, 1380], [3.4, 760, 760], [5.2, 1030, 1080], [10.2, 400, 410],
+  [16.4, 1300, 1400], [16.5, SL.x + SL.w * 0.25 + 4, SLC.y + 6], [17.35, KX0 + 4, SLC.y + 6], [21.1, 1180, 1300],
+  [29.3, 900, 1380], [29.4, PS.x + PS.w * 0.55, PS.y + PS.h * 0.55],
+  [33.4, PAGE.x + 520, PAGE.y + 300],
+];
+const curX = track(1300, CUR_KEYS.map(([b, x]) => [B(b), x, 1.25, 0.82]));
+const curY = track(1380, CUR_KEYS.map(([b, , y]) => [B(b), y, 1.25, 0.82]));
+const CLICKS = [4, 11, 17, 35, 36, 38];
+const pressAt = (t) => CLICKS.reduce((p, b) => p + step(t, B(b), 4, 0.6) - step(t, B(b + 0.16), 4, 0.6), 0);
+const CUR_ON = [[3.3, 7.2], [9.6, 12], [16.4, 21.8], [29.3, 38.7]];
+
+/* ================================================================ SEEK == */
+async function seek(t) {
+  const L = {
+    open: t < B(12.05) || t >= B(53),
+    glass: within(t, 12, 24.4),
+    stage: within(t, 22, 44.6),
+    order: within(t, 38.9, 44.6),
+    wall: within(t, 44, 53),
+  };
+  show($("L-open"), L.open); show($("L-glass"), L.glass); show($("L-stage"), L.stage);
+  show($("L-order"), L.order); show($("L-wall"), L.wall);
+
+  let cam = { focus: [W / 2, W / 2], s: 1 };
+  let cx = curX(t), cy = curY(t), press = pressAt(t);
+  const curOn = CUR_ON.some(([a, b]) => within(t, a, b));
+  let ring = 0;
+
+  if (L.open) cam = renderOpen(t);
+  let g = null;
+  if (L.glass) {
+    g = renderGlass(t);
+    if (within(t, 17.9, 21.05)) { cx = g.knobX + 4; cy = g.knobY + 6; press = Math.max(press, g.held); }
+  }
+  let st = null;
+  if (L.stage) {
+    st = renderStage(t);
+    const A = st.anchors;
+    if (within(t, 29.9, 33.3)) {
+      // long-press the wallpaper, then carry the card
+      const lift = step(t, B(31), 1.4, 0.72);
+      cx = lerp(A.phone.x, st.card.x + st.card.w * 0.5, clamp(lift)); cy = lerp(A.phone.y, st.card.y + st.card.h * 0.45, clamp(lift));
+      press = Math.max(press, clamp(step(t, B(30), 4, 0.7)) - clamp(step(t, B(33.1), 4, 0.7)));
+      ring = clamp(prog(t, B(30), B(0.9)));
+    }
+    if (t >= B(33.3)) {
+      const tx = track(PAGE.x + 520, [[B(34.4), A.red.x, 1.25, 0.82], [B(35.4), A.seg12.x, 1.25, 0.82], [B(37.3), A.btn.x, 1.25, 0.82]])(t);
+      const ty = track(PAGE.y + 300, [[B(34.4), A.red.y, 1.25, 0.82], [B(35.4), A.seg12.y, 1.25, 0.82], [B(37.3), A.btn.y, 1.25, 0.82]])(t);
+      cx = tx + 4; cy = ty + 6;
+    }
+    // product zoom, then back out as the order shape takes the frame
+    const z = step(t, B(33.6), 0.9, 0.85) - step(t, B(38.7), 1.1, 0.85);
+    const fc = { x: PAGE.x + PANEL.x + PANEL.w / 2, y: PAGE.y + PANEL.y + PANEL.h / 2 };
+    cam = { focus: [lerp(W / 2, fc.x, z), lerp(W / 2, fc.y, z)], s: 1 + 0.42 * z };
+  }
+  if (L.glass && g) placeLens(t, g.lens, st ? st.L : null);
+  if (L.order) {
+    renderOrder(t, st ? st.anchors.btnR : { x: 700, y: 700, w: 175, h: 56, r: 28 });
+    const oz = step(t, B(39.2), 1.0, 0.85);
+    cam = { focus: [lerp(cam.focus[0], W / 2, clamp(oz)), lerp(cam.focus[1], W / 2, clamp(oz))], s: lerp(cam.s, 1.24, clamp(oz)) };
+  }
+  if (L.wall) await renderWall(t);
+
+  $("cam").style.transform = `translate(${W / 2 - cam.focus[0] * cam.s}px, ${W / 2 - cam.focus[1] * cam.s}px) scale(${cam.s})`;
+  const c = $("cursor");
+  c.style.visibility = curOn ? "visible" : "hidden";
+  c.style.transform = `translate(${cx - 6}px, ${cy - 4}px) scale(${1 - 0.14 * clamp(press)})`;
+  const rg = $("press-ring");
+  rg.style.visibility = ring > 0 && ring < 1 ? "visible" : "hidden";
+  rg.style.transform = `translate(${cx - 48}px, ${cy - 48}px)`;
+  $("press-ring-c").setAttribute("stroke-dasharray", `${(2 * Math.PI * 38 * ring).toFixed(1)} 999`);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+
+window.ready = (async () => {
+  await document.fonts.load(`800 ${FS}px Archivo`);
+  await document.fonts.load(`700 40px Geist`);
+  await document.fonts.load(`500 40px Geist`);
+  await document.fonts.ready;
+  measureWord();
+  buildTiles();
+  buildFizz();
+  buildStage();
+  buildOrder();
+  buildWall();
+  await loadFootage();
+  await Promise.all([...document.images].map((i) => (i.complete ? null : new Promise((ok) => (i.onload = i.onerror = ok)))));
+  return true;
+})();
+window.seek = seek;
+</script>
+</body>
+</html>

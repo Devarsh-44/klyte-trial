@@ -3,3 +3,12 @@ node_modules
 out
 *.tsbuildinfo
 next-env.d.ts
+video/scratch
+video/out
+# Film media stays local: brand footage/photos belong to Klyte and the
+# Mixkit audio license does not allow redistributing the raw files.
+video/assets/audio
+video/assets/footage
+video/assets/photos
+video/assets/film
+video/assets/site

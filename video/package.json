@@ -1,0 +1,13 @@
+{
+  "name": "klyte-film",
+  "version": "0.1.0",
+  "private": true,
+  "description": "30-second Klyte launch film: one HTML scene seeked frame by frame, rendered with Playwright + ffmpeg.",
+  "type": "module",
+  "devDependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "playwright": "^1.64.1"
+  }
+}
