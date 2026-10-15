@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useMotionValue, useSpring, type MotionValue } from "framer-motion";
 import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
@@ -9,23 +9,12 @@ import { FLAVORS, PRICE } from "@/lib/data";
 import { useFlavor } from "@/components/providers/flavor-provider";
 import { useCart } from "@/components/providers/cart-provider";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { FizzButton } from "@/components/ui/fizz-button";
 import { ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { EASE_OUT, cn } from "@/lib/utils";
 
 const CanStage = dynamic(() => import("@/components/three/can-stage"), { ssr: false });
-
-function useMediaQuery(query: string) {
-  const [match, setMatch] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return match;
-}
 
 export function Lineup() {
   const wrap = useRef<HTMLElement>(null);

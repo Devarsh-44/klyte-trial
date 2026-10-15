@@ -295,7 +295,13 @@ export function Ritual() {
   };
 
   return (
-    <section id="ritual" ref={root} aria-label="How Klyte hits" className="relative md:h-[420vh]">
+    <section id="ritual" ref={root} aria-label="How Klyte hits" className="relative md:h-[320vh]">
+      <a
+        href="#edge"
+        className="sr-only z-20 rounded-full bg-fg px-4 py-2 text-sm font-medium text-bg focus:not-sr-only focus:absolute focus:left-5 focus:top-24"
+      >
+        Skip the story
+      </a>
       <div className="relative md:sticky md:top-0 md:h-[100svh] md:overflow-hidden">
         <div className="ritual-track flex flex-col md:h-full md:w-[400%] md:flex-row">
           {BEATS.map((beat, i) => {

@@ -49,6 +49,19 @@ export function Hero() {
     { scope: root },
   );
 
+  // Radio pattern: arrows move the selection, and focus follows it.
+  const onPickerKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const i = FLAVORS.findIndex((f) => f.id === flavor.id);
+    const next = FLAVORS[(i + step + FLAVORS.length) % FLAVORS.length];
+    const btn = e.currentTarget.querySelector<HTMLButtonElement>(`[data-flavor="${next.id}"]`);
+    btn?.focus();
+    const r = btn?.getBoundingClientRect();
+    pourTo(next.id, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : undefined);
+  };
+
   const scrollTo = (id: string) => {
     if (lenis) lenis.scrollTo(`#${id}`, { duration: 1.3 });
     else document.getElementById(id)?.scrollIntoView();
@@ -129,14 +142,22 @@ export function Hero() {
             from tomorrow.
           </p>
 
-          <div role="radiogroup" aria-label="Choose a flavor" className="hero-fade mt-7 grid md:mt-9 max-w-md grid-cols-2 gap-2">
+          <div
+            role="radiogroup"
+            aria-label="Choose a flavor"
+            onKeyDown={onPickerKey}
+            className="hero-fade mt-7 grid max-w-md grid-cols-2 gap-2 md:mt-9"
+          >
             {FLAVORS.map((f) => {
               const active = f.id === flavor.id;
               return (
                 <button
                   key={f.id}
+                  type="button"
                   role="radio"
                   aria-checked={active}
+                  tabIndex={active ? 0 : -1}
+                  data-flavor={f.id}
                   onClick={(e) => pourTo(f.id, { x: e.clientX, y: e.clientY })}
                   className={cn(
                     "group relative flex items-center gap-3 rounded-2xl border p-2.5 pr-3 text-left backdrop-blur-md transition-[border-color,background-color,transform] duration-200 ease-out active:scale-[0.98]",
@@ -149,8 +170,10 @@ export function Hero() {
                     style={{ background: `linear-gradient(180deg, ${f.can.top} 0 45%, ${f.can.bottom})` }}
                   />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-fg">{f.name}</span>
-                    <span className="block truncate text-xs text-fg/50">{f.ingredients.slice(0, 2).join(" / ")}</span>
+                    <span className="block text-sm font-medium leading-snug text-fg">{f.name}</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-fg/50">
+                      {f.ingredients.slice(0, 2).join(" / ")}
+                    </span>
                   </span>
                 </button>
               );

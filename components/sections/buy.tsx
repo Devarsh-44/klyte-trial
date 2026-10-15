@@ -55,16 +55,38 @@ function QuickCommerce() {
   );
 }
 
+/**
+ * Forgiving lookup: "anan", "Vadodara 390001" and a pincode in the same
+ * district (first three digits) all find the right city.
+ */
+function findStockist(raw: string) {
+  const q = raw.trim().toLowerCase();
+  const pin = q.match(/\b\d{6}\b/)?.[0];
+  const words = q.replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3);
+  return (
+    (pin && STOCKISTS.find((s) => s.pincodes.includes(pin))) ||
+    words.map((w) => STOCKISTS.find((s) => s.city.toLowerCase().startsWith(w))).find(Boolean) ||
+    (pin && STOCKISTS.find((s) => s.pincodes.some((p) => p.slice(0, 3) === pin.slice(0, 3)))) ||
+    null
+  );
+}
+
 function StoreFinder() {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<null | { city: string; stores: string[] } | "none">(null);
 
+  const run = (q: string) => {
+    if (!q.trim()) return;
+    const hit = findStockist(q);
+    setResult(hit ? { city: hit.city, stores: hit.stores } : "none");
+  };
   const search = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = query.trim().toLowerCase();
-    if (!q) return;
-    const hit = STOCKISTS.find((s) => s.city.toLowerCase() === q || s.pincodes.includes(q));
-    setResult(hit ? { city: hit.city, stores: hit.stores } : "none");
+    run(query);
+  };
+  const tryExample = (q: string) => {
+    setQuery(q);
+    run(q);
   };
 
   return (
@@ -99,9 +121,9 @@ function StoreFinder() {
         <AnimatePresence mode="wait" initial={false}>
           {result === null && (
             <motion.p key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm text-fg/50">
-              Try <button type="button" onClick={() => setQuery("Anand")} className="text-fg underline decoration-line underline-offset-4">Anand</button>,{" "}
-              <button type="button" onClick={() => setQuery("Vadodara")} className="text-fg underline decoration-line underline-offset-4">Vadodara</button> or{" "}
-              <button type="button" onClick={() => setQuery("380015")} className="text-fg underline decoration-line underline-offset-4">380015</button>.
+              Try <button type="button" onClick={() => tryExample("Anand")} className="text-fg underline decoration-line underline-offset-4">Anand</button>,{" "}
+              <button type="button" onClick={() => tryExample("Vadodara")} className="text-fg underline decoration-line underline-offset-4">Vadodara</button> or{" "}
+              <button type="button" onClick={() => tryExample("380015")} className="text-fg underline decoration-line underline-offset-4">380015</button>.
             </motion.p>
           )}
           {result === "none" && (

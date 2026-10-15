@@ -9,6 +9,7 @@ import {
   useInView,
 } from "framer-motion";
 import { FLAVORS, FLAVOR_BY_ID, type FlavorId } from "@/lib/data";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { createLabelTexture, paintLabel } from "./label-texture";
 import { FruitField, Fizz } from "./fruit-field";
 
@@ -241,11 +242,13 @@ export default function CanStage({
   const inView = useInView(wrap, { margin: "200px" });
   const reduce = useReducedMotion() ?? false;
   const flavor = FLAVOR_BY_ID[flavorId];
+  // Phones run two of these stages; cap the pixel ratio to keep them cool.
+  const touch = useMediaQuery("(pointer: coarse)");
 
   return (
     <div ref={wrap} className={className} aria-hidden>
       <Canvas
-        dpr={[1, 1.75]}
+        dpr={touch ? [1, 1.25] : [1, 1.75]}
         frameloop={inView ? "always" : "never"}
         camera={{ position: [0, 0, 6.4], fov: 30 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
