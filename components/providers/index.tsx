@@ -4,6 +4,7 @@ import { MotionConfig } from "framer-motion";
 import { CartProvider } from "./cart-provider";
 import { FlavorProvider } from "./flavor-provider";
 import { SmoothScroll } from "./smooth-scroll";
+import { PanelProvider } from "./panel-provider";
 import { ThemeProvider } from "./theme-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <FlavorProvider>
           <CartProvider>
-            <SmoothScroll>{children}</SmoothScroll>
+            <SmoothScroll>
+              <PanelProvider>{children}</PanelProvider>
+            </SmoothScroll>
           </CartProvider>
         </FlavorProvider>
       </ThemeProvider>

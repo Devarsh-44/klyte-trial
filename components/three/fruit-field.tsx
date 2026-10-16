@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { FLAVORS, type FlavorId } from "@/lib/data";
+import { charge } from "@/lib/charge";
 
 /* ------------------------------------------------------------------------ *
  * Fruit that orbits the can, straight out of the brand films:
@@ -163,9 +164,11 @@ interface FruitFieldProps {
   flavorId: FlavorId;
   reduce: boolean;
   interactive: boolean;
+  /** Follow the hero's hold-to-recharge charge. */
+  reactive?: boolean;
 }
 
-export function FruitField({ flavorId, reduce, interactive }: FruitFieldProps) {
+export function FruitField({ flavorId, reduce, interactive, reactive = false }: FruitFieldProps) {
   const m = useMaterials();
   const { viewport } = useThree();
   const sets = useMemo(() => FLAVORS.map((f) => ({ id: f.id, items: buildItems(f.id) })), []);
@@ -181,7 +184,8 @@ export function FruitField({ flavorId, reduce, interactive }: FruitFieldProps) {
 
   useFrame((state, dt) => {
     const d = Math.min(dt, 1 / 10);
-    if (!reduce) time.current += d;
+    // Orbit speeds up as the hero charges (up to ~3x).
+    if (!reduce) time.current += d * (reactive ? 1 + 2.2 * charge.value : 1);
     const t = time.current;
 
     if (root.current) {

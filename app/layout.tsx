@@ -5,7 +5,8 @@ import "@fontsource/anton/400.css";
 import "@fontsource/titan-one/400.css";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { themeInitScript } from "@/components/providers/theme-provider";
+import { PourLoader } from "@/components/ui/pour-loader";
+import { pourInitScript, themeInitScript } from "@/lib/init-scripts";
 
 /** Absolute base for the share image. An explicit NEXT_PUBLIC_SITE_URL wins;
  *  on Vercel the production domain (or this deployment's URL) is used, so
@@ -49,9 +50,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript + pourInitScript }} />
       </head>
       <body>
+        <PourLoader />
         <Providers>{children}</Providers>
         <div aria-hidden className="grain" />
       </body>

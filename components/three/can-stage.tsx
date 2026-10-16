@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { FLAVORS, FLAVOR_BY_ID, type FlavorId } from "@/lib/data";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { charge } from "@/lib/charge";
 import { createLabelTexture, paintLabel } from "./label-texture";
 import { FruitField, Fizz } from "./fruit-field";
 
@@ -86,12 +87,15 @@ interface CanProps {
   flavorId: FlavorId;
   interactive?: boolean;
   reduceMotion?: boolean;
+  /** Follow the hero's hold-to-recharge charge (tremble, tab pop). */
+  reactive?: boolean;
 }
 
-function Can({ flavorId, interactive = true, reduceMotion = false }: CanProps) {
+function Can({ flavorId, interactive = true, reduceMotion = false, reactive = false }: CanProps) {
   const group = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const labelMat = useRef<THREE.MeshPhysicalMaterial>(null);
+  const tab = useRef<THREE.Mesh>(null);
   const profile = useCanProfile();
   const { textures } = useLabelTextures();
 
@@ -147,6 +151,22 @@ function Can({ flavorId, interactive = true, reduceMotion = false }: CanProps) {
     scaleKick.current = THREE.MathUtils.damp(scaleKick.current, 0, 5, d);
     const s = 1 - Math.sin(scaleKick.current * Math.PI) * 0.06;
     group.current.scale.setScalar(s);
+
+    if (reactive && !reduceMotion) {
+      // Tremble harder as the charge builds; settle once recharged.
+      const t = state.clock.elapsedTime;
+      const done = charge.rechargedAt > 0;
+      const amp = done ? 0 : 0.035 * charge.value * charge.value;
+      group.current.position.x += Math.sin(t * 61) * amp;
+      group.current.position.y = Math.cos(t * 53) * amp;
+      group.current.rotation.z += Math.sin(t * 47) * amp * 0.6;
+    }
+    if (tab.current) {
+      // At 100% the tab pops up off the lid.
+      const open = reactive && charge.rechargedAt > 0 ? 1 : 0;
+      tab.current.rotation.x = THREE.MathUtils.damp(tab.current.rotation.x, -Math.PI / 2 + 0.06 - open * 1.05, 9, d);
+      tab.current.position.y = THREE.MathUtils.damp(tab.current.position.y, 1.585 + open * 0.06, 9, d);
+    }
   });
 
   if (!textures) return null;
@@ -170,7 +190,7 @@ function Can({ flavorId, interactive = true, reduceMotion = false }: CanProps) {
           />
         </mesh>
         {/* Pull tab */}
-        <mesh position={[0, 1.585, 0.12]} rotation={[-Math.PI / 2 + 0.06, 0, 0]}>
+        <mesh ref={tab} position={[0, 1.585, 0.12]} rotation={[-Math.PI / 2 + 0.06, 0, 0]}>
           <capsuleGeometry args={[0.09, 0.16, 6, 16]} />
           <meshPhysicalMaterial color="#b9bec2" metalness={1} roughness={0.3} />
         </mesh>
@@ -222,6 +242,8 @@ export interface CanStageProps {
   scale?: number;
   /** Orbiting fruit + rising fizz from the brand films. */
   fruit?: boolean;
+  /** Follow the hero's hold-to-recharge charge. */
+  reactive?: boolean;
   /** Track the pointer across a larger element than the canvas itself. */
   eventSource?: React.RefObject<HTMLElement | null>;
 }
@@ -236,6 +258,7 @@ export default function CanStage({
   anchorY = 0.5,
   scale = 1,
   fruit = true,
+  reactive = false,
 }: CanStageProps) {
   const wrap = useRef<HTMLDivElement>(null);
   // Pause the render loop when the stage is off-screen.
@@ -269,10 +292,10 @@ export default function CanStage({
 
         <Anchor x={anchorX} y={anchorY} scale={scale}>
           <Float speed={reduce ? 0 : 1.6} rotationIntensity={reduce ? 0 : 0.25} floatIntensity={reduce ? 0 : 0.6}>
-            <Can flavorId={flavorId} interactive={interactive} reduceMotion={reduce} />
+            <Can flavorId={flavorId} interactive={interactive} reduceMotion={reduce} reactive={reactive} />
           </Float>
 
-          {fruit && <FruitField flavorId={flavorId} reduce={reduce} interactive={interactive} />}
+          {fruit && <FruitField flavorId={flavorId} reduce={reduce} interactive={interactive} reactive={reactive} />}
           {fruit && <Fizz reduce={reduce} />}
 
           {sparkles && !reduce && (

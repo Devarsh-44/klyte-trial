@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, MapPin, Plus, Search } from "lucide-react";
 import { FLAVORS, FLAVOR_BY_ID, PACKS, PRICE, QUICK_COMMERCE, STOCKISTS } from "@/lib/data";
 import { useCart } from "@/components/providers/cart-provider";
+import { usePanel } from "@/components/providers/panel-provider";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { FizzButton } from "@/components/ui/fizz-button";
 import { EASE_OUT, cn } from "@/lib/utils";
@@ -163,6 +164,7 @@ function StoreFinder() {
 
 function Packs() {
   const { add } = useCart();
+  const { openPanel } = usePanel();
   return (
     <div className="glass flex flex-col rounded-4xl p-6 md:p-7">
       <p className="hud-label">Direct from Klyte</p>
@@ -183,11 +185,12 @@ function Packs() {
               </span>
               <span className="font-mono text-sm text-fg tabular">
                 {PRICE.currency}
-                {p.price}
+                {p.price.toLocaleString("en-IN")}
               </span>
               <FizzButton
                 type="button"
-                onClick={() => add(p.sku, p.name === "Variety pack" ? "Variety pack" : `${p.name} 6-pack`)}
+                // Flavor packs open the buy panel on "Pack of 6"; the variety pack adds directly.
+                onClick={() => (p.flavor ? openPanel(p.flavor, "pack6") : add(p.sku, "Variety pack"))}
                 aria-label={`Add ${p.name} to cart`}
                 className={cn(
                   "grid size-9 shrink-0 place-items-center rounded-full bg-accent text-on-accent transition-transform duration-150 ease-out active:scale-[0.94]",

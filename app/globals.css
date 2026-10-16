@@ -168,3 +168,55 @@ html.lenis body {
 .ritual-bubble {
   animation: ritual-rise 3s linear infinite;
 }
+
+/* ------------------------------------------------ Hold to recharge -- */
+/* Copy under the waterline turns white so it reads on the liquid. */
+.sunk,
+.sunk * {
+  color: #ffffff !important;
+  transition: color 120ms ease-out;
+}
+
+/* Waterline wave slides sideways (transform only, composited). */
+@keyframes hero-wave {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.hero-wave {
+  animation: hero-wave 2.4s linear infinite;
+}
+
+/* Bubbles rising through the liquid. */
+@keyframes hero-bubble {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate3d(10px, -95vh, 0); opacity: 0; }
+}
+.hero-bubble {
+  animation: hero-bubble 4s linear infinite;
+}
+
+/* The 100% fizz burst from the can. */
+@keyframes hero-burst {
+  0% { transform: translate3d(0, 0, 0) scale(0.4); opacity: 1; }
+  100% { transform: translate3d(var(--dx), var(--dy), 0) scale(1); opacity: 0; }
+}
+.hero-burst {
+  left: 0;
+  top: 0;
+  animation: hero-burst 0.9s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-wave,
+  .hero-bubble { animation: none; }
+}
+
+/* ---------------------------------------------------- Pour loader -- */
+html[data-poured] .pour-loader { display: none; }
+@keyframes pour-bubble {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate3d(4px, -0.9em, 0); opacity: 0; }
+}
+.pour-bubble { animation: pour-bubble 0.9s ease-out infinite; }

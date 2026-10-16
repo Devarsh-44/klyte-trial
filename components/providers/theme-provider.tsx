@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type Theme = "dark" | "light";
-const KEY = "klyte-theme";
+import { THEME_KEY as KEY } from "@/lib/init-scripts";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -13,11 +13,6 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-/**
- * Runs before first paint (inlined in <head>) so the page never flashes the
- * wrong theme. Saved choice wins, otherwise the OS preference.
- */
-export const themeInitScript = `(function(){try{var t=localStorage.getItem('${KEY}');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}})();`;
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");

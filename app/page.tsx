@@ -6,7 +6,7 @@ import { Ritual } from "@/components/sections/ritual";
 import { Lineup } from "@/components/sections/lineup";
 import { Buy } from "@/components/sections/buy";
 import { Nutrition } from "@/components/sections/nutrition";
-import { Marquee } from "@/components/sections/marquee";
+import { Faq } from "@/components/sections/faq";
 import { Footer } from "@/components/sections/footer";
 
 export default function Home() {
@@ -22,7 +22,7 @@ export default function Home() {
         <Lineup />
         <Buy />
         <Nutrition />
-        <Marquee />
+        <Faq />
       </main>
       <Footer />
     </>

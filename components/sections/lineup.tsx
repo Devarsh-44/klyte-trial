@@ -7,10 +7,9 @@ import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
 import { useLenis } from "lenis/react";
 import { FLAVORS, PRICE } from "@/lib/data";
 import { useFlavor } from "@/components/providers/flavor-provider";
-import { useCart } from "@/components/providers/cart-provider";
+import { usePanel } from "@/components/providers/panel-provider";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { FizzButton } from "@/components/ui/fizz-button";
 import { ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { EASE_OUT, cn } from "@/lib/utils";
 
@@ -19,7 +18,7 @@ const CanStage = dynamic(() => import("@/components/three/can-stage"), { ssr: fa
 export function Lineup() {
   const wrap = useRef<HTMLElement>(null);
   const { flavor, flavorIndex, setFlavor, pourTo } = useFlavor();
-  const { add } = useCart();
+  const { openPanel } = usePanel();
   const reduce = useReducedMotion();
   const desktop = useMediaQuery("(min-width: 768px)");
   const pinned = desktop && !reduce;
@@ -118,18 +117,18 @@ export function Lineup() {
                     ))}
                   </h3>
                   <p className="mt-5 max-w-sm text-sm leading-relaxed text-fg/65">{flavor.description}</p>
-                  <FizzButton
+                  <button
                     type="button"
-                    onClick={() => add(`${flavor.id}-6`, `${flavor.name} 6-pack`)}
+                    onClick={() => openPanel(flavor.id)}
                     className="mt-7 inline-flex h-11 items-center gap-2 rounded-full bg-accent pl-4 pr-5 text-sm font-medium text-on-accent transition-transform duration-150 ease-out active:scale-[0.97]"
                     data-accent-fade
                   >
-                    <Plus className="size-4" /> Add a 6-pack
+                    <Plus className="size-4" /> Get {flavor.name}
                     <span className="text-on-accent/70 tabular">
-                      {PRICE.currency}
-                      {PRICE.pack6}
+                      from {PRICE.currency}
+                      {PRICE.can}
                     </span>
-                  </FizzButton>
+                  </button>
                 </motion.div>
               </AnimatePresence>
             </div>

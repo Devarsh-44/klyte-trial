@@ -86,7 +86,9 @@ export const FLAVORS: Flavor[] = [
 
 export const FLAVOR_BY_ID = Object.fromEntries(FLAVORS.map((f) => [f.id, f])) as Record<FlavorId, Flavor>;
 
-export const PRICE = { can: 59, pack6: 329, currency: "\u20B9" }; // MOCK
+/** Single can: store price and launch price. Pack of 6 is ASSUMED (6 x launch
+ *  price) until the brand confirms it; update both here and in PACKS. */
+export const PRICE = { can: 149, canMrp: 169, pack6: 894, pack6Mrp: 1014, currency: "\u20B9" };
 
 /** Master brand colour, from the Instagram avatar. Logo + brand moments only;
  *  flavor colours handle everything product-related. */
@@ -103,6 +105,7 @@ export const NAV_LINKS = [
   { label: "Why Klyte", href: "#edge" },
   { label: "Flavors", href: "#lineup" },
   { label: "Where to buy", href: "#buy" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 export const MANIFESTO =
@@ -123,11 +126,50 @@ export const STOCKISTS = [
   { city: "Ahmedabad", pincodes: ["380009", "380015", "380054"], stores: ["Navrangpura Corner Store", "Satellite Fresh Mart", "SG Highway Express"] },
 ];
 
-export const PACKS = [
-  { sku: "melon-mode-6", name: "Melon Mode", size: "6 x 250 ml", price: 329, flavor: "melon-mode" as const },
-  { sku: "blueberry-spirulina-6", name: "Blueberry Spirulina", size: "6 x 250 ml", price: 329, flavor: "blueberry-spirulina" as const },
-  { sku: "variety-12", name: "Variety pack", size: "12 x 250 ml, both flavors", price: 629, flavor: null },
-]; // MOCK prices
+export const PACKS: { sku: string; name: string; size: string; price: number; flavor: FlavorId | null }[] = [
+  { sku: "melon-mode-6", name: "Melon Mode", size: "6 x 250 ml", price: PRICE.pack6, flavor: "melon-mode" },
+  { sku: "blueberry-spirulina-6", name: "Blueberry Spirulina", size: "6 x 250 ml", price: PRICE.pack6, flavor: "blueberry-spirulina" },
+  { sku: "variety-12", name: "Variety pack", size: "12 x 250 ml, both flavors", price: PRICE.pack6 * 2, flavor: null },
+]; // pack prices follow the ASSUMED pack-of-6 price above
+
+/** Everything the cart can hold: the packs plus single cans. */
+export const CATALOG = [
+  ...PACKS,
+  ...FLAVORS.map((f) => ({ sku: `${f.id}-can`, name: f.name, size: "Single can, 250 ml", price: PRICE.can, flavor: f.id as FlavorId | null })),
+];
+
+/* ------------------------------------------------------------------- FAQ -- */
+
+/** Set to a real wa.me link (with the brand's number) to make the FAQ footer a link. */
+export const WHATSAPP_URL: string | null = null;
+
+export const FAQ: { q: string; a: string; strike?: string }[] = [
+  {
+    q: "Is Klyte an energy drink?",
+    strike: "energy drink",
+    a: "Nope. It's sparkling hydration: electrolytes, B vitamins and fibre with zero caffeine. No spike, no crash.",
+  },
+  {
+    q: "When should I drink it?",
+    a: "Whenever you'd reach for something fizzy. After the gym, mid-afternoon, on a long ride, or the morning after. No caffeine means it works at 11 pm too.",
+  },
+  {
+    q: "How fast is delivery?",
+    a: "About 10 minutes on Blinkit, Zepto or Instamart where we're stocked. Packs ordered from us usually land in 2 to 4 days.",
+  },
+  {
+    q: "How do I pay?",
+    a: "UPI, cards and netbanking on our store. The quick-commerce apps take whatever you already use with them.",
+  },
+  {
+    q: "Where's my order?",
+    a: "Your confirmation message has a tracking link. If it hasn't moved in a day, message us and we'll chase it.",
+  },
+  {
+    q: "Can arrived dented?",
+    a: "Send us a photo within 48 hours of delivery and we'll replace it. No forms, no back and forth.",
+  },
+];
 
 /* ------------------------------------------------------------- The edge -- */
 

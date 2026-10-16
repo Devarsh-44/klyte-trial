@@ -4,11 +4,11 @@ import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useLenis } from "lenis/react";
-import { FLAVORS, FLAVOR_BY_ID, PACKS, PRICE } from "@/lib/data";
+import { CATALOG, FLAVORS, FLAVOR_BY_ID, PRICE } from "@/lib/data";
 import { useCart } from "@/components/providers/cart-provider";
 import { EASE_OUT } from "@/lib/utils";
 
-const PACK_BY_SKU = Object.fromEntries(PACKS.map((p) => [p.sku, p]));
+const PACK_BY_SKU = Object.fromEntries(CATALOG.map((p) => [p.sku, p]));
 
 /** Slide-in cart. Concept only: checkout is a stub until a store is wired up. */
 export function CartDrawer() {
