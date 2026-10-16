@@ -51,6 +51,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript + pourInitScript }} />
+        {/* Paint the page background before the stylesheet arrives (no white flash),
+            and fetch the loader's wordmark font early so it never shows a fallback. */}
+        <style>{`html{background:#0B0B0C}html[data-theme="light"]{background:#F5F3EE}`}</style>
+        <link rel="preload" href="/fonts/titan-one-latin-400-normal.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body>
         <PourLoader />

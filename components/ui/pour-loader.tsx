@@ -2,81 +2,99 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FLAVOR_BY_ID } from "@/lib/data";
-import { POUR_KEY as KEY } from "@/lib/init-scripts";
+import { POUR_KEY } from "@/lib/init-scripts";
 
-const FILL_MS = 1000;
-const DRAIN_MS = 380;
+const melon = FLAVOR_BY_ID["melon-mode"];
+
+/*
+ * Inlined with the markup so the loader paints with the HTML itself, before
+ * the stylesheet or any script arrives. Every motion is a transform keyframe,
+ * so it runs on the compositor and stays smooth while the main thread is busy
+ * starting the 3D scene. The fill is a window sliding up (outer +100% -> 0)
+ * over text counter-moving down (-100% -> 0), so the letters stay put.
+ */
+const CSS = `
+@font-face{font-family:"Klyte Loader";src:url(/fonts/titan-one-latin-400-normal.woff2) format("woff2");font-display:block}
+.pour-loader{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:#0B0B0C;will-change:transform;
+  animation:pour-drain .42s cubic-bezier(.65,0,.35,1) 1.02s forwards}
+.pour-word{position:relative;font-family:"Klyte Loader",sans-serif;font-size:clamp(5rem,22vw,13rem);line-height:1;text-transform:lowercase}
+.pour-outline{display:block;color:transparent;-webkit-text-stroke:2px rgba(244,241,234,.4)}
+.pour-fill{position:absolute;inset:0;overflow:hidden;transform:translate3d(0,100%,0);animation:pour-up .95s cubic-bezier(.22,1,.36,1) .06s forwards}
+.pour-fill-in{position:absolute;inset:0;transform:translate3d(0,-100%,0);animation:pour-down .95s cubic-bezier(.22,1,.36,1) .06s forwards}
+.pour-fill-in>span{display:block;color:transparent;-webkit-background-clip:text;background-clip:text;
+  background-image:linear-gradient(180deg,${melon.can.top} 0%,${melon.can.mid} 55%,${melon.can.bottom} 100%)}
+.pour-bubble{position:absolute;bottom:10%;border-radius:50%;border:1px solid rgba(255,255,255,.65);animation:pour-bubble .9s ease-out infinite}
+.pour-label{margin-top:1.5rem;font:500 .7rem/1 ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase;color:rgba(244,241,234,.45)}
+@keyframes pour-up{to{transform:translate3d(0,0,0)}}
+@keyframes pour-down{to{transform:translate3d(0,0,0)}}
+@keyframes pour-drain{to{transform:translate3d(0,100%,0)}}
+@keyframes pour-bubble{0%{transform:translate3d(0,0,0);opacity:0}15%{opacity:1}100%{transform:translate3d(4px,-.9em,0);opacity:0}}
+html[data-poured] .pour-loader{display:none}
+@media (prefers-reduced-motion:reduce){.pour-loader{display:none}}
+`;
 
 const BUBBLES = Array.from({ length: 10 }, (_, i) => ({ left: 8 + ((i * 37) % 84), size: 5 + ((i * 7) % 8), delay: (i * 0.09) % 0.8 }));
 
 /**
  * First-visit loader. The outlined wordmark fills with Melon from the bottom,
- * bubbles rise through the letters, then the whole screen drains down to
- * reveal the hero. No numbers; never longer than ~1.4 s.
+ * bubbles rise through the letters, then the screen drains down to reveal the
+ * hero. No numbers; ~1.45 s from first paint. Returning visitors skip it (the
+ * head script marks <html data-poured> before paint).
  */
 export function PourLoader() {
-  const [done, setDone] = useState(false);
+  const [gone, setGone] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const fill = useRef<HTMLDivElement>(null);
-  const melon = FLAVOR_BY_ID["melon-mode"];
 
   useEffect(() => {
     if (document.documentElement.dataset.poured) {
-      setDone(true);
+      setGone(true);
       return;
     }
-    let raf = 0;
-    const start = performance.now();
-    const ease = (k: number) => 1 - Math.pow(1 - k, 3);
-    const frame = (now: number) => {
-      const t = now - start;
-      const f = ease(Math.min(1, t / FILL_MS));
-      if (fill.current) fill.current.style.clipPath = `inset(${(1 - f) * 100}% 0 0 0)`;
-      const d = Math.max(0, Math.min(1, (t - FILL_MS) / DRAIN_MS));
-      // Drain: the screen's top edge falls away, revealing the page from the top.
-      if (root.current) root.current.style.clipPath = `inset(${ease(d) * 100}% 0 0 0)`;
-      if (d < 1) raf = requestAnimationFrame(frame);
-      else {
-        try {
-          localStorage.setItem(KEY, "1");
-        } catch {
-          /* storage blocked: the pour simply plays again next visit */
-        }
-        setDone(true);
+    const finish = () => {
+      try {
+        localStorage.setItem(POUR_KEY, "1");
+      } catch {
+        /* storage blocked: the pour simply plays again next visit */
       }
+      setGone(true);
     };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    const el = root.current;
+    const onEnd = (e: AnimationEvent) => e.animationName === "pour-drain" && finish();
+    el?.addEventListener("animationend", onEnd);
+    // If hydration lands after the CSS already finished, clean up anyway.
+    const t = window.setTimeout(finish, 1800);
+    return () => {
+      el?.removeEventListener("animationend", onEnd);
+      window.clearTimeout(t);
+    };
   }, []);
 
-  if (done) return null;
+  if (gone) return null;
 
   const word = "klyte";
   return (
-    <div ref={root} className="pour-loader fixed inset-0 z-[90] grid place-items-center bg-[#0B0B0C]" aria-hidden>
-      <div className="relative flex flex-col items-center">
-        <div className="relative font-wordmark text-[clamp(5rem,22vw,13rem)] lowercase leading-none">
-          {/* outline */}
-          <span className="block text-transparent [-webkit-text-stroke:2px_rgba(244,241,234,0.4)]">{word}</span>
-          {/* liquid fill, clipped from the bottom up */}
-          <div ref={fill} className="absolute inset-0" style={{ clipPath: "inset(100% 0 0 0)" }}>
-            <span
-              className="block bg-clip-text text-transparent"
-              style={{ backgroundImage: `linear-gradient(180deg, ${melon.can.top} 0%, ${melon.can.mid} 55%, ${melon.can.bottom} 100%)` }}
-            >
-              {word}
-            </span>
-            {BUBBLES.map((b, i) => (
-              <span
-                key={i}
-                className="pour-bubble absolute bottom-[8%] rounded-full border border-white/60"
-                style={{ left: `${b.left}%`, width: b.size, height: b.size, animationDelay: `${b.delay}s` }}
-              />
-            ))}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <div ref={root} className="pour-loader" aria-hidden>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div className="pour-word">
+            <span className="pour-outline">{word}</span>
+            <div className="pour-fill">
+              <div className="pour-fill-in">
+                <span>{word}</span>
+                {BUBBLES.map((b, i) => (
+                  <span
+                    key={i}
+                    className="pour-bubble"
+                    style={{ left: `${b.left}%`, width: b.size, height: b.size, animationDelay: `${b.delay}s` }}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
+          <p className="pour-label">Pouring…</p>
         </div>
-        <p className="mt-6 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-[#F4F1EA]/45">Pouring…</p>
       </div>
-    </div>
+    </>
   );
 }
