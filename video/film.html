@@ -11,7 +11,9 @@
   html, body { margin: 0; background: var(--paper); }
   #frame { position: relative; width: 1440px; height: 1440px; overflow: hidden; background: var(--paper); font-family: "Geist", system-ui, sans-serif; color: var(--ink); }
   #cam { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; transform-origin: 0 0; }
-  .layer { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; visibility: hidden; }
+  /* z-index 0 makes each layer its own stacking context, so z-indexes inside
+     one scene can never paint over a later scene (the pour-flood). */
+  .layer { position: absolute; left: 0; top: 0; width: 1440px; height: 1440px; visibility: hidden; z-index: 0; }
   .abs { position: absolute; }
   /* A child must inherit visibility, or it shows through a hidden parent. */
   .layer * { visibility: inherit; }
@@ -1200,14 +1202,28 @@ async function loadFootage() {
   footageVideo.src = URL.createObjectURL(blob);
   await new Promise((ok) => footageVideo.addEventListener("loadeddata", ok, { once: true }));
 }
-async function drawFootage(time) {
-  const v = footageVideo;
-  const target = Math.min(v.duration - 0.05, Math.round(time * 24) / 24 + 1 / 48);
+async function seekTo(v, target) {
   if (Math.abs(v.currentTime - target) > 1e-3) {
     await new Promise((ok) => { v.addEventListener("seeked", ok, { once: true }); v.currentTime = target; });
   }
+}
+/* 24 fps footage inside a 60 fps film: blend the two neighbouring source
+   frames by the fractional position, so motion glides instead of stepping. */
+async function drawFootage(time) {
+  const v = footageVideo;
   const c = $("footage");
-  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  const ctx = c.getContext("2d");
+  const f = Math.max(0, time * 24);
+  const f0 = Math.floor(f), a = f - f0;
+  await seekTo(v, Math.min(v.duration - 0.05, f0 / 24 + 1 / 48));
+  ctx.globalAlpha = 1;
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  if (a > 0.02) {
+    await seekTo(v, Math.min(v.duration - 0.05, (f0 + 1) / 24 + 1 / 48));
+    ctx.globalAlpha = a;
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    ctx.globalAlpha = 1;
+  }
 }
 async function renderWall(t) {
   $("pour-path").setAttribute("d", pourPath(t, B(44)));
@@ -1227,7 +1243,9 @@ async function renderWall(t) {
   const inner = { left: px(FRAME.x - hole.x), top: px(FRAME.y - hole.y), width: px(FRAME.w), height: px(FRAME.h) };
   Object.assign($("footage").style, inner);
   Object.assign($("sculpt").style, inner);
-  if (t >= B(46)) await drawFootage(5.35 + (t - B(46)));
+  // Slowed to 0.72x so it stays inside the tab + spray shot and never reaches
+  // the source clip's own hard cut (~6.95 s). The iris covers the rest.
+  if (t >= B(46)) await drawFootage(Math.min(6.86, 5.35 + (t - B(46)) * 0.72));
   vis($("sculpt"), within(t, 50.3, 51.4));
 
   // the same pull-tab iris, inside the frame: close, open on the sculptures, close
