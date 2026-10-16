@@ -7,9 +7,19 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { themeInitScript } from "@/components/providers/theme-provider";
 
+/** Absolute base for the share image. An explicit NEXT_PUBLIC_SITE_URL wins;
+ *  on Vercel the production domain (or this deployment's URL) is used, so
+ *  link previews work with no setup; locally it falls back to localhost. */
+function siteUrl() {
+  const { NEXT_PUBLIC_SITE_URL, VERCEL_PROJECT_PRODUCTION_URL, VERCEL_URL } = process.env;
+  if (NEXT_PUBLIC_SITE_URL) return NEXT_PUBLIC_SITE_URL;
+  if (VERCEL_PROJECT_PRODUCTION_URL) return `https://${VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (VERCEL_URL) return `https://${VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
 export const metadata: Metadata = {
-  // Absolute base for the share image; set NEXT_PUBLIC_SITE_URL when deployed.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl()),
   title: "Klyte — Outgrow the Ordinary",
   description:
     "Sparkling electrolyte hydration with zero caffeine and no added sugar. Melon Mode and Blueberry Spirulina.",
